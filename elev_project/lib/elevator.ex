@@ -1,14 +1,10 @@
-defmodule ElevProject do
+defmodule Elevator do
 
-
-
-  @name :FSM
-
-  
+  @name :elevator_FSM
 
   use GenServer
   @moduledoc """
-  Documentation for `ElevProject`.
+  Documentation for `Elevator`.
   """
 
   @doc """
@@ -16,7 +12,7 @@ defmodule ElevProject do
 
   ## Examples
 
-      iex> ElevProject.hello()
+      iex> Elevator.hello()
       :world
 
   """
