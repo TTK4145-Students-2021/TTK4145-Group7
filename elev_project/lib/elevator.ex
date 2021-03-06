@@ -1,54 +1,65 @@
 defmodule Elevator_FSM do
-  @behaviour :gen_statem
+  use GenStateMachine
 
+  @name :elevator_FSM
+  
   # Client
-
   def start_link do
-    :gen_statem.start_link( __MODULE__, {idle, data})
+    GenStateMachine.start_link(__MODULE__, [], name: @name)
+    GenStateMachine.cast(@name, :complete_init)
   end
 
-  @impl :gen_statem
-  def init(_), do
+  def init(_) do
     # To do: Get to known state
-     {:ok, :idle, nil}
-
-  @impl :gen_statem
-  def callback_mode, do: :handle_event_function
-
-  def start_moving(pid, direction:) do
-    GenStateMachine.cast(pid, :start_moving, direction:)
+    Driver.start_link([])
+    data = %{order: nil, floor: nil, direction: nil}
+    {:ok, :init, data}
   end
 
-  def serve_floor(pid) do
-    GenStateMachine.cast(pid, :serve_floor)
+  def start_moving(direction) do
+    GenStateMachine.cast(@name, {:start_moving, direction})
   end
 
-  def close_door(pid) do
-    GenStateMachine.cast(pid, :close_door)
+  def serve_floor(floor) do
+    GenStateMachine.cast(@name, {:serve_floor,floor})
+  end
+
+  def close_door() do
+    GenStateMachine.cast(@name, :close_door)
   end
 
   # Server (callbacks)
-
-  @impl :gen_statem
-  def handle_event(cast, :idle, :start_moving, data, direction:) do
-    Driver.set_motor_direction(direction:)
-    {:next_state, :moving}
+  def handle_event(:cast, {:start_moving, direction}, :idle, data) do
+    Driver.set_motor_direction(direction)
+    {:next_state, :moving, data}
   end
 
-  def handle_event(cast, :idle, :serve_floor, data) do
+  def handle_event(:cast, :serve_floor, :idle, data) do
     Driver.set_door_open_light(:on)
-    {:next_state, :door_open}
+    {:next_state, :door_open, data}
   end
 
-  def handle_event(cast, :moving, :serve_floor, data) do
+  def handle_event(:cast, {:serve_floor, floor}, :moving, data) when floor == data.order do
     Driver.set_motor_direction(:stop)
     Driver.set_door_open_light(:on)
-    {:next_state, :door_open}
+    Driver.set_floor_indicator(floor)
+    {:next_state, :door_open, data}
   end
 
-  def handle_event(cast, :door_open, :close_door, data) do
+  def handle_event(:cast, {:serve_floor, floor}, :moving, data) do
+    Driver.set_floor_indicator(floor)
+    {:next_state, :moving, data}
+  end
+
+  def handle_event(:cast, :close_door, :door_open, data) do
     Driver.set_door_open_light(:on)
-    {:next_state, :idle}
+    {:next_state, :idle, data}
+  end
+
+  def handle_event(:cast, :complete_init, :init, data) do
+    # go to a defined floor/state
+
+    {:next_state, :idle, data}
   end
 end
 
