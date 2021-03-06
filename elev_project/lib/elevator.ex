@@ -1,45 +1,54 @@
-defmodule Elevator do
-
-  @name :elevator_FSM
-
-  use GenServer
-  @moduledoc """
-  Documentation for `Elevator`.
-  """
-
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> Elevator.hello()
-      :world
-
-  """
+defmodule Elevator_FSM do
+  @behaviour :gen_statem
 
   # Client
-  def start_link(_default) do
-    GenServer.start_link(__MODULE__,[], name: @name)
+
+  def start_link do
+    :gen_statem.start_link( __MODULE__, {idle, data})
   end
 
-  def new_order() do
-    GenServer.cast(@name, :new_order)
+  @impl :gen_statem
+  def init(_), do
+    # To do: Get to known state
+     {:ok, :idle, nil}
 
+  @impl :gen_statem
+  def callback_mode, do: :handle_event_function
+
+  def start_moving(pid, direction:) do
+    GenStateMachine.cast(pid, :start_moving, direction:)
   end
 
-
-  #Server (callbacks)
-  @impl true
-  def init(state) do
-    Driver.start_link([])
-    {:ok, state}
+  def serve_floor(pid) do
+    GenStateMachine.cast(pid, :serve_floor)
   end
 
+  def close_door(pid) do
+    GenStateMachine.cast(pid, :close_door)
+  end
 
-  @impl true
-  def handle_cast(:new_order,state) do
-    Driver.set_stop_button_light(:on)
-    {:noreply, state}
+  # Server (callbacks)
+
+  @impl :gen_statem
+  def handle_event(cast, :idle, :start_moving, data, direction:) do
+    Driver.set_motor_direction(direction:)
+    {:next_state, :moving}
+  end
+
+  def handle_event(cast, :idle, :serve_floor, data) do
+    Driver.set_door_open_light(:on)
+    {:next_state, :door_open}
+  end
+
+  def handle_event(cast, :moving, :serve_floor, data) do
+    Driver.set_motor_direction(:stop)
+    Driver.set_door_open_light(:on)
+    {:next_state, :door_open}
+  end
+
+  def handle_event(cast, :door_open, :close_door, data) do
+    Driver.set_door_open_light(:on)
+    {:next_state, :idle}
   end
 end
 
