@@ -22,6 +22,10 @@ defmodule Elevator do
     GenStateMachine.cast(@name, :close_door)
   end
 
+  def new_order(at_floor) do
+    GenStateMachine.cast(@name, {:new_order, at_floor})
+  end
+
   # Server (callbacks)
   @impl true
   def init(_) do
@@ -58,15 +62,14 @@ defmodule Elevator do
   def handle_event(:cast, {:serve_floor, floor}, :moving, data) when floor == data.order do
     Driver.set_motor_direction(:stop)
     Driver.set_door_open_light(:on)
-    Driver.set_floor_indicator(floor)
     new_data = Map.put(data, :floor, floor)
-    {:next_state, :door_open, new_data}
+    {:next_state, :idle, new_data}
   end
 
   @impl true
   def handle_event(:cast, {:serve_floor, floor}, :moving, data) do
-    Driver.set_floor_indicator(floor)
-    {:next_state, :moving, data}
+    new_data = Map.put(data, :floor, floor)
+    {:next_state, :moving, new_data}
   end
 
   @impl true
@@ -76,11 +79,29 @@ defmodule Elevator do
   end
 
   @impl true
+  def handle_event(:cast, {:new_order, at_floor}, :idle, data) do
+    new_data = data
+    case at_floor < data.floor do
+      true -> new_data = Map.replace(data, :direction, :down)
+              Driver.set_motor_direction(:down)
+      false -> new_data = Map.replace(data, :direction, :up)
+              Driver.set_motor_direction(:up)
+    end
+    Driver.set_door_open_light(:off)
+    new_data = Map.replace(new_data, :order, at_floor)
+    {:next_state, :moving, new_data}
+  end
+
+  @impl true
+  def handle_event(:cast, {:new_order, at_floor}, :moving, data) do
+    new_data = Map.replace(data, :order, at_floor)
+    {:next_state, :moving, new_data}
+  end
+
+  @impl true
   def handle_event(:cast, :complete_init, :init, data) do
     # go to a defined floor/state
 
     {:next_state, :idle, data}
   end
 end
-
-

@@ -1,7 +1,7 @@
 defmodule HardwareSupervisor do
     use Supervisor
 
-    def start_link([floors]) do
+    def start_link(floors) do
         Supervisor.start_link(__MODULE__, {:ok,floors}, name: __MODULE__)
     end
 

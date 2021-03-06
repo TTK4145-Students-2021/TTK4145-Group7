@@ -1,12 +1,3 @@
-defmodule ElevatorState do
-    defstruct floor: nil, direction: nil
-end
-
-defmodule ElevatorOrder do
-    defstruct floor: nil, type: nil
-end
-
-
 defmodule ButtonPoller do   
     
     use Task
@@ -33,6 +24,11 @@ defmodule ButtonPoller do
 
             1 -> if button_state == :released do
                     IO.puts("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
+                    
+                    # Temporary call for testing purposes
+                    Elevator.new_order(floor)
+
+
                 end
                 button_poller(floor, button_type, :pressed)
             
@@ -80,6 +76,14 @@ defmodule SensorPoller do
 
     def sensor_poller(:floor_sensor, floor) do
         IO.puts("Lift at " <> to_string(floor))
+
+
+        # Temporary call for testing purposes
+        Elevator.serve_floor(floor)
+
+
+
+
         Driver.set_floor_indicator(floor)
         sensor_poller(:floor_sensor, :idle)
     end
