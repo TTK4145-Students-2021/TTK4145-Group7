@@ -4,20 +4,11 @@ defmodule Elevator do
   @name :elevator
   defstruct [:order, :floor, :direction]
 
-<<<<<<< HEAD
-  defstruct [:order, :floor, :direction, :state]
-
-  use GenServer
-  @moduledoc """
-  Documentation for `Elevator`.
-  """
-=======
   # Client
   def start_link do
     GenStateMachine.start_link(__MODULE__, [], name: @name)
     GenStateMachine.cast(@name, :complete_init)
   end
->>>>>>> elev_FSM
 
   def start_moving(direction) do
     GenStateMachine.cast(@name, {:start_moving, direction})
