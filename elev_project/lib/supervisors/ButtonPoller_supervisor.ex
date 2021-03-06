@@ -1,4 +1,9 @@
 defmodule ButtonPoller.Supervisor do
+
+    @moduledoc """
+    This sets up the supervisor for all the different buttons going over all the floors.
+    """
+
     use Supervisor
 
     def start_link([floors]) do 
@@ -6,7 +11,6 @@ defmodule ButtonPoller.Supervisor do
     end
 
     def init({:ok,floors}) do
-
         all_possible_orders = get_all_buttons(floors)
         children = Enum.map(all_possible_orders, fn button -> ButtonPoller.child_spec(button.floor, button.type) end)
         options = [strategy: :one_for_one, name: Button.Supervisor]

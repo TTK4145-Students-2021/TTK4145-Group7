@@ -1,6 +1,20 @@
 # ElevProject
 
-**TODO: Add description**
+# How to run
+
+Run the following commands
+```
+iex -S mix
+HardwareSupervisor.start_link [3]
+
+```
+
+# To do
+
+- [x] IO-Poller
+- [ ] Merge the IO poller and FSM
+- [ ] State machine of the elevator
+- [ ] Implement cost function
 
 ## Installation
 
