@@ -31,14 +31,14 @@ defmodule Elevator do
   #Server (callbacks)
   @impl true
   def init(state) do
-    Driver.start_link([])
+    #Driver.start_link([])
     {:ok, state}
   end
 
 
   @impl true
   def handle_cast(:new_order,state) do
-    Driver.set_stop_button_light(:on)
+    #Driver.set_stop_button_light(:on)
     {:noreply, state}
   end
 end
