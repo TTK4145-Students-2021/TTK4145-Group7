@@ -1,81 +1,94 @@
 defmodule Elevator do
+  use GenStateMachine
 
-  @name :elevator_FSM
+  @name :elevator
+  defstruct [:order, :floor, :direction]
 
+<<<<<<< HEAD
   defstruct [:order, :floor, :direction, :state]
 
   use GenServer
   @moduledoc """
   Documentation for `Elevator`.
   """
-
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> Elevator.hello()
-      :world
-
-  """
-
-  def start_link(_default) do
-    GenServer.start_link(__MODULE__, [], name: @name)
-    Driver.set_motor_direction(:down)
-  end
-
-  @impl true
-  def init(state) do
-    Driver.start_link([])
-    state = %Elevator{
-      order: nil,
-      floor: nil,
-      direction: nil,
-      state: :init
-    }
-    {:ok, state}
-  end
-
+=======
   # Client
-  def new_order(floor) do
-    GenServer.cast(@name, {:new_order, floor})
+  def start_link do
+    GenStateMachine.start_link(__MODULE__, [], name: @name)
+    GenStateMachine.cast(@name, :complete_init)
+  end
+>>>>>>> elev_FSM
+
+  def start_moving(direction) do
+    GenStateMachine.cast(@name, {:start_moving, direction})
   end
 
-  def floor_arrival(floor) do
-    GenServer.cast(@name, {:floor_arrival, floor})
+  def serve_floor(floor) do
+    GenStateMachine.cast(@name, {:serve_floor,floor})
   end
 
-  #Server (callbacks)
+  def close_door() do
+    GenStateMachine.cast(@name, :close_door)
+  end
+
+  # Server (callbacks)
   @impl true
-  def handle_cast({:new_order, floor}, state) do
-    Driver.set_stop_button_light(:on)
-    new_state = Map.put(state, :order, floor)
-    {:noreply, new_state}
+  def init(_) do
+    # To do: Get to known state
+    Driver.start_link([])
+    data = %Elevator{
+      order: nil, 
+      floor: nil, 
+      direction: nil
+    }
+    {:ok, :init, data}
   end
 
   @impl true
-  def handle_cast({:floor_arrival, floor}, state) when state.state == :init do
-    Driver.set_floor_indicator(floor)
-    Driver.set_motor_direction(:stop)
-    {:noreply, state}
+  def handle_event(:cast, {:start_moving, direction}, :idle, data) do
+    Driver.set_motor_direction(direction)
+    {:next_state, :moving, data}
   end
 
   @impl true
-  def handle_cast({:floor_arrival, floor}, state) when floor == state.order do
-    Driver.set_motor_direction(:stop)
-    Driver.set_floor_indicator(floor)
+  def handle_event(:cast, {:start_moving, direction}, :door_open, data) do
+    Driver.set_door_open_light(:off)
+    Driver.set_motor_direction(direction)
+    {:next_state, :moving, data}
+  end
+
+  @impl true
+  def handle_event(:cast, :serve_floor, :idle, data) do
     Driver.set_door_open_light(:on)
-    new_state = Map.put(state, :floor, floor)
-
-    # Tell Order that order was completed
-
-    {:noreply, new_state}
+    {:next_state, :door_open, data}
   end
 
   @impl true
-  def handle_cast({:floor_arrival, floor}, state) do
+  def handle_event(:cast, {:serve_floor, floor}, :moving, data) when floor == data.order do
+    Driver.set_motor_direction(:stop)
+    Driver.set_door_open_light(:on)
     Driver.set_floor_indicator(floor)
-    {:noreply, state}
+    new_data = Map.put(data, :floor, floor)
+    {:next_state, :door_open, new_data}
+  end
+
+  @impl true
+  def handle_event(:cast, {:serve_floor, floor}, :moving, data) do
+    Driver.set_floor_indicator(floor)
+    {:next_state, :moving, data}
+  end
+
+  @impl true
+  def handle_event(:cast, :close_door, :door_open, data) do
+    Driver.set_door_open_light(:on)
+    {:next_state, :idle, data}
+  end
+
+  @impl true
+  def handle_event(:cast, :complete_init, :init, data) do
+    # go to a defined floor/state
+
+    {:next_state, :idle, data}
   end
 end
 
