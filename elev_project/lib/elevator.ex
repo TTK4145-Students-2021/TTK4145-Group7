@@ -9,10 +9,6 @@ defmodule Elevator do
     GenStateMachine.start_link(__MODULE__, args, name: @name)
   end
 
-  def start_moving(direction) do
-    GenStateMachine.cast(@name, {:start_moving, direction})
-  end
-
   def serve_floor(floor) do
     GenStateMachine.cast(@name, {:serve_floor,floor})
   end
@@ -34,19 +30,6 @@ defmodule Elevator do
   end
 
   @impl true
-  def handle_event(:cast, {:start_moving, direction}, :idle, data) do
-    Driver.set_motor_direction(direction)
-    {:next_state, :moving, data}
-  end
-
-  @impl true
-  def handle_event(:cast, {:start_moving, direction}, :door_open, data) do
-    Driver.set_door_open_light(:off)
-    Driver.set_motor_direction(direction)
-    {:next_state, :moving, data}
-  end
-
-  @impl true
   def handle_event(:cast, {:serve_floor, floor}, :moving, data) when floor == data.order do
     Driver.set_motor_direction(:stop)
     Driver.set_door_open_light(:on)
@@ -57,14 +40,14 @@ defmodule Elevator do
 
   @impl true
   def handle_event(:cast, {:serve_floor, floor}, :moving, data) do
-    new_data = Map.put(data, :floor, floor)
-    {:next_state, :moving, new_data}
+    new_data = %{data | floor: floor}
+    {:keep_state, new_data}
   end
 
   @impl true
   def handle_event(:cast, {:serve_floor, floor}, :init, data) do
     Driver.set_motor_direction(:stop)
-    new_data = Map.put(data, :floor, floor)
+    new_data = %{data | floor: floor}
     {:next_state, :idle, new_data}
   end
 
@@ -77,6 +60,8 @@ defmodule Elevator do
   @impl true
   def handle_event(:cast, {:new_order, at_floor}, :idle, data) do
     new_data = data
+
+    #flawed but temporary :)
     case at_floor < data.floor do
       true -> new_data = %{data | direction: :down}
               Driver.set_motor_direction(:down)
@@ -91,12 +76,17 @@ defmodule Elevator do
   @impl true
   def handle_event(:cast, {:new_order, at_floor}, :moving, data) do
     new_data = %{data | order: at_floor}
-    {:next_state, :moving, new_data}
+    {:keep_state, new_data}
   end
 
   @impl true
   def handle_event(:cast, {:new_order, at_floor}, :door_open, data) do
     new_data = %{data | order: at_floor}
-    {:next_state, :door_open, new_data}
+    {:keep_state, new_data}
+  end
+
+  @impl true
+  def handle_event(:cast, {:new_order, at_floor}, _state, data) do
+    :keep_state_and_data
   end
 end
