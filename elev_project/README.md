@@ -1,6 +1,6 @@
 # ElevProject
 
-Program for controlling 'm' elevators over 'n' floors.
+Program for controlling `m` elevators over `n` floors.
 
 ## How to run
 
