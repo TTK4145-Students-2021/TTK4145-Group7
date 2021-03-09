@@ -6,9 +6,7 @@ defmodule Elevator do
 
   # Client
   def start_link(args \\ []) do
-    {:ok, pid} = GenStateMachine.start_link(__MODULE__, args, name: @name)
-    GenStateMachine.cast(@name, :complete_init)
-    {:ok, pid}
+    GenStateMachine.start_link(__MODULE__, args, name: @name)
   end
 
   def start_moving(direction) do
@@ -17,10 +15,6 @@ defmodule Elevator do
 
   def serve_floor(floor) do
     GenStateMachine.cast(@name, {:serve_floor,floor})
-  end
-
-  def close_door() do
-    GenStateMachine.cast(@name, :close_door)
   end
 
   def new_order(at_floor) do
@@ -53,18 +47,11 @@ defmodule Elevator do
   end
 
   @impl true
-  def handle_event(:cast, :serve_floor, :idle, data) do
-    Driver.set_door_open_light(:on)
-    {:next_state, :door_open, data}
-  end
-
-  @impl true
   def handle_event(:cast, {:serve_floor, floor}, :moving, data) when floor == data.order do
     Driver.set_motor_direction(:stop)
     Driver.set_door_open_light(:on)
     Process.send_after(@name, :close_door, 2_000)
     new_data = %{data | floor: floor, order: nil}
-    IO.inspect(new_data)
     {:next_state, :door_open, new_data}
   end
 
