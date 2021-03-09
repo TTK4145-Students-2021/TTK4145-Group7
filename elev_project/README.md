@@ -1,7 +1,8 @@
 # ElevProject
 
+Program for controlling 'm' elevators over 'n' floors.
 
-# How to run
+## How to run
 
 Run the following commands
 ```
@@ -12,7 +13,7 @@ ElevProject.Supervisor.start_link
 ```
 
 
-# To do
+## To do
 
 - [x] IO-Poller
 - [x] Merge the IO poller and FSM
@@ -21,7 +22,7 @@ ElevProject.Supervisor.start_link
 - [ ] Implement order 
 - [ ] Implement watchdog
 
-## Installation
+## Installation as finished module
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed
 by adding `elev_project` to your list of dependencies in `mix.exs`:
