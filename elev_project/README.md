@@ -1,20 +1,25 @@
 # ElevProject
 
+
 # How to run
 
 Run the following commands
 ```
 iex -S mix
-HardwareSupervisor.start_link [3]
-
 ```
+```
+ElevProject.Supervisor.start_link
+```
+
 
 # To do
 
 - [x] IO-Poller
-- [ ] Merge the IO poller and FSM
-- [ ] State machine of the elevator
+- [x] Merge the IO poller and FSM
+- [x] State machine of the elevator
 - [ ] Implement cost function
+- [ ] Implement order 
+- [ ] Implement watchdog
 
 ## Installation
 
