@@ -7,8 +7,7 @@ defmodule ElevProject.Supervisor do
 
     def init(:ok) do
         children = [
-            {HardwareSupervisor, @floors},
-            {Elevator, []}
+            {HardwareSupervisor, @floors}
         ]
 
         opts = [strategy: :one_for_one]

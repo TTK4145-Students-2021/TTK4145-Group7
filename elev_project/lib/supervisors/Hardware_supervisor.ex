@@ -8,9 +8,9 @@ defmodule HardwareSupervisor do
     def init({:ok,floors}) do
         children = [
             {Driver, []},
+            {Elevator, []},
             {ButtonPoller.Supervisor, [floors]},
-            {SensorPoller.Supervisor, []},
-            #{Elevator, []}
+            {SensorPoller.Supervisor, []}
         ]
 
         opts = [strategy: :rest_for_one]
