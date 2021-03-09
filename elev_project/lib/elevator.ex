@@ -7,7 +7,6 @@ defmodule Elevator do
   # Client
   def start_link do
     GenStateMachine.start_link(__MODULE__, [], name: @name)
-    GenStateMachine.cast(@name, :complete_init)
   end
 
   def start_moving(direction) do
@@ -29,13 +28,13 @@ defmodule Elevator do
   # Server (callbacks)
   @impl true
   def init(_) do
-    # To do: Get to known state
     Driver.start_link([])
     data = %Elevator{
       order: nil, 
       floor: nil, 
       direction: nil
     }
+    Driver.set_motor_direction(:down)
     {:ok, :init, data}
   end
 
@@ -62,8 +61,10 @@ defmodule Elevator do
   def handle_event(:cast, {:serve_floor, floor}, :moving, data) when floor == data.order do
     Driver.set_motor_direction(:stop)
     Driver.set_door_open_light(:on)
-    new_data = Map.put(data, :floor, floor)
-    {:next_state, :idle, new_data}
+    Process.send_after(@name, :close_door, 2_000)
+    new_data = %{data | floor: floor, order: nil}
+    IO.inspect(new_data)
+    {:next_state, :door_open, new_data}
   end
 
   @impl true
@@ -73,8 +74,15 @@ defmodule Elevator do
   end
 
   @impl true
-  def handle_event(:cast, :close_door, :door_open, data) do
-    Driver.set_door_open_light(:on)
+  def handle_event(:cast, {:serve_floor, floor}, :init, data) do
+    Driver.set_motor_direction(:stop)
+    new_data = Map.put(data, :floor, floor)
+    {:next_state, :idle, new_data}
+  end
+
+  @impl true
+  def handle_event(:info, :close_door, :door_open, data) do
+    Driver.set_door_open_light(:off)
     {:next_state, :idle, data}
   end
 
@@ -82,26 +90,25 @@ defmodule Elevator do
   def handle_event(:cast, {:new_order, at_floor}, :idle, data) do
     new_data = data
     case at_floor < data.floor do
-      true -> new_data = Map.replace(data, :direction, :down)
+      true -> new_data = %{data | direction: :down}
               Driver.set_motor_direction(:down)
-      false -> new_data = Map.replace(data, :direction, :up)
+      false -> new_data = %{data | direction: :up}
               Driver.set_motor_direction(:up)
     end
     Driver.set_door_open_light(:off)
-    new_data = Map.replace(new_data, :order, at_floor)
+    new_data = %{data | order: at_floor}
     {:next_state, :moving, new_data}
   end
 
   @impl true
   def handle_event(:cast, {:new_order, at_floor}, :moving, data) do
-    new_data = Map.replace(data, :order, at_floor)
+    new_data = %{data | order: at_floor}
     {:next_state, :moving, new_data}
   end
 
   @impl true
-  def handle_event(:cast, :complete_init, :init, data) do
-    # go to a defined floor/state
-
-    {:next_state, :idle, data}
+  def handle_event(:cast, {:new_order, at_floor}, :door_open, data) do
+    new_data = %{data | order: at_floor}
+    {:next_state, :door_open, new_data}
   end
 end
