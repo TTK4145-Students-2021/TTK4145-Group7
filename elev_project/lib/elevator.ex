@@ -1,13 +1,14 @@
 defmodule Elevator do
   use GenStateMachine
 
-  @name :elevator
+  @name :elevator_machine
   defstruct [:order, :floor, :direction]
 
   # Client
-  def start_link do
-    GenStateMachine.start_link(__MODULE__, [], name: @name)
+  def start_link(args \\ []) do
+    {:ok, pid} = GenStateMachine.start_link(__MODULE__, args, name: @name)
     GenStateMachine.cast(@name, :complete_init)
+    {:ok, pid}
   end
 
   def start_moving(direction) do
@@ -30,7 +31,6 @@ defmodule Elevator do
   @impl true
   def init(_) do
     # To do: Get to known state
-    Driver.start_link([])
     data = %Elevator{
       order: nil, 
       floor: nil, 

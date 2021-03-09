@@ -9,7 +9,8 @@ defmodule HardwareSupervisor do
         children = [
             {Driver, []},
             {ButtonPoller.Supervisor, [floors]},
-            {SensorPoller.Supervisor, []}
+            {SensorPoller.Supervisor, []},
+            #{Elevator, []}
         ]
 
         opts = [strategy: :rest_for_one]

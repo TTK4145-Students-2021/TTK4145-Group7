@@ -1,3 +1,8 @@
+
+defmodule ElevatorOrder do
+  defstruct floor: nil, type: nil
+end
+
 defmodule ButtonPoller.Supervisor do
 
     @moduledoc """
