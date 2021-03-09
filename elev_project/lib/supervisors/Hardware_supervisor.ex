@@ -8,6 +8,7 @@ defmodule HardwareSupervisor do
     def init({:ok,floors}) do
         children = [
             {Driver, []},
+            {Elevator, []},
             {ButtonPoller.Supervisor, [floors]},
             {SensorPoller.Supervisor, []}
         ]
