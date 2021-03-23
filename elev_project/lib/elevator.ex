@@ -10,13 +10,13 @@ defmodule Elevator do
   end
 
   def serve_floor(floor) do
-    GenStateMachine.cast(@name, {:serve_floor,floor})
+    GenStateMachine.cast(@name, {:serve_floor, floor})
   end
 
   def new_order(at_floor) do
     GenStateMachine.cast(@name, {:new_order, at_floor})
   end
-
+  
   # Server (callbacks)
   @impl true
   def init(_) do

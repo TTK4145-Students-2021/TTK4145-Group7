@@ -19,8 +19,7 @@ ElevProject.Supervisor.start_link
 - [x] Merge the IO poller and FSM
 - [x] State machine of the elevator
 - [ ] Implement cost function
-- [ ] Implement order 
-- [ ] Implement watchdog
+- [ ] Implement getting the next order from order_map
 
 ## Installation as finished module
 

@@ -1,3 +1,4 @@
+
 defmodule ButtonPoller do   
     
     use Task
@@ -18,17 +19,15 @@ defmodule ButtonPoller do
     def button_poller(floor, button_type, button_state) do
         Process.sleep(200)
         state = Driver.get_order_button_state(floor, button_type)
-        #IO.puts(state)
         case state do
             0 -> button_poller(floor, button_type, :released)
 
             1 -> if button_state == :released do
                     IO.puts("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
-                    
+                    # %ElevatorOrder{floor: floor, type: button_type}
                     # Temporary call for testing purposes
-                    Elevator.new_order(floor)
-
-
+                    # Elevator.new_order(floor)
+                    Order.send_IO_order(%ElevatorOrder{floor: floor, type: button_type})
                 end
                 button_poller(floor, button_type, :pressed)
             
@@ -77,12 +76,7 @@ defmodule SensorPoller do
     def sensor_poller(:floor_sensor, floor) do
         IO.puts("Lift at " <> to_string(floor))
 
-
-        # Temporary call for testing purposes
         Elevator.serve_floor(floor)
-
-
-
 
         Driver.set_floor_indicator(floor)
         sensor_poller(:floor_sensor, :idle)
