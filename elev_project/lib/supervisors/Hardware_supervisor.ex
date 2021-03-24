@@ -1,13 +1,14 @@
 defmodule HardwareSupervisor do
     use Supervisor
+    @floors 3
 
-    def start_link(floors) do
-        Supervisor.start_link(__MODULE__, {:ok,floors}, name: __MODULE__)
+    def start_link(port) do
+        Supervisor.start_link(__MODULE__, {:ok,@floors,port}, name: __MODULE__)
     end
 
-    def init({:ok,floors}) do
+    def init({:ok,floors,port}) do
         children = [
-            {Driver, []},
+            {Driver, [port]},
             {Elevator, []},
             {ButtonPoller.Supervisor, [floors]},
             {SensorPoller.Supervisor, []}

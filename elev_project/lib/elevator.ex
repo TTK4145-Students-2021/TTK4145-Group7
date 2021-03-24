@@ -2,7 +2,7 @@ defmodule Elevator do
   use GenStateMachine
 
   @name :elevator_machine
-  defstruct [:order, :floor, :direction]
+  defstruct [:order, :floor, :direction, :obstruction]
 
   # Client
   def start_link(args \\ []) do
@@ -16,6 +16,10 @@ defmodule Elevator do
   def new_order(at_floor) do
     GenStateMachine.cast(@name, {:new_order, at_floor})
   end
+
+  def obstruction_switch(obstruction_state) do
+    GenStateMachine.cast(@name, {:obstruction, obstruction_state})
+  end
   
   # Server (callbacks)
   @impl true
@@ -23,7 +27,8 @@ defmodule Elevator do
     data = %Elevator{
       order: nil, 
       floor: nil, 
-      direction: nil
+      direction: nil,
+      obstruction: nil
     }
     Driver.set_motor_direction(:down)
     {:ok, :init, data}
@@ -58,18 +63,22 @@ defmodule Elevator do
   end
 
   @impl true
-  def handle_event(:cast, {:new_order, at_floor}, :idle, data) do
-    new_data = data
+  def handle_event(:info, :close_door, :obstruction, data) do
+    Process.send_after(@name, :close_door, 2_000)
+    :keep_state_and_data
+  end
 
+  @impl true
+  def handle_event(:cast, {:new_order, at_floor}, :idle, data) do
     #flawed but temporary :)
-    case at_floor < data.floor do
-      true -> new_data = %{data | direction: :down}
-              Driver.set_motor_direction(:down)
-      false -> new_data = %{data | direction: :up}
-              Driver.set_motor_direction(:up)
+    new_data = case at_floor < data.floor do
+      true  -> Driver.set_motor_direction(:down)
+               %{data | direction: :down}
+      false -> Driver.set_motor_direction(:up)
+               %{data | direction: :up}
     end
     Driver.set_door_open_light(:off)
-    new_data = %{data | order: at_floor}
+    new_data = %{new_data | order: at_floor}
     {:next_state, :moving, new_data}
   end
 
@@ -88,5 +97,29 @@ defmodule Elevator do
   @impl true
   def handle_event(:cast, {:new_order, at_floor}, _state, data) do
     :keep_state_and_data
+  end
+
+  @impl true
+  def handle_event(:cast, {:obstruction, obstruction_state}, :door_open, data) when obstruction_state == :on do
+    new_data = %{data | obstruction: :on}
+    {:next_state, :obstruction, new_data}
+  end
+
+  @impl true
+  def handle_event(:cast, {:obstruction, obstruction_state}, _state, data) when obstruction_state == :on do
+    new_data = %{data | obstruction: :on}
+    {:keep_state, new_data}
+  end
+
+  @impl true
+  def handle_event(:cast, {:obstruction, obstruction_state}, :obstruction, data) when obstruction_state == :off do
+    new_data = %{data | obstruction: :off}
+    {:next_state, :door_open, new_data}
+  end
+
+  @impl true
+  def handle_event(:cast, {:obstruction, obstruction_state}, _state, data) when obstruction_state == :off do
+    new_data = %{data | obstruction: :off}
+    {:keep_state, new_data}
   end
 end

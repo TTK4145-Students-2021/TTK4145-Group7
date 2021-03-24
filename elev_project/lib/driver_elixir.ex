@@ -9,6 +9,10 @@ defmodule Driver do
     start_link [{127,0,0,1}, 15657]
   end
 
+  def start_link([port]) do
+    start_link [{127,0,0,1}, port]
+  end
+
   def start_link([address, port]) do
     GenServer.start_link(__MODULE__, [address, port], name: __MODULE__)
   end
