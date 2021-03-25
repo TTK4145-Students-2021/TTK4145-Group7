@@ -6,10 +6,10 @@ Program for controlling `m` elevators over `n` floors.
 
 Run the following commands
 ```
-iex -S mix
+iex --sname "name" -S mix
 ```
 ```
-ElevProject.Supervisor.start_link
+ElevProject.Supervisor.start_link("port", "elevator_number")
 ```
 
 
@@ -18,8 +18,12 @@ ElevProject.Supervisor.start_link
 - [x] IO-Poller
 - [x] Merge the IO poller and FSM
 - [x] State machine of the elevator
-- [ ] Implement cost function
-- [ ] Implement getting the next order from order_map
+- [x] Finish light module
+- [x] Implement cost function
+- [ ] Test cost function
+- [ ] Implement getting the next order from order_map using cost function?
+- [ ] Implement watchdog
+- [ ] Finish elevator logic
 
 ## Installation as finished module
 

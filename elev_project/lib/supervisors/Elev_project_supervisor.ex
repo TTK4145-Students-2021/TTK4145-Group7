@@ -1,7 +1,7 @@
 defmodule ElevProject.Supervisor do
     use Supervisor
     @floors 3
-    def start_link(port, elevator_number) do
+    def start_link(port \\ 15657, elevator_number) do
         Supervisor.start_link(__MODULE__, {port,elevator_number} , name: __MODULE__)
     end
 

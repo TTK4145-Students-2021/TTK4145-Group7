@@ -2,7 +2,7 @@ defmodule Order do
 
     @name :order_server
     @n_elevators 2
-    @m_floors 4
+    @m_floors 3
     @stop_cost 1
     @travel_cost 1
     use GenServer
@@ -49,8 +49,12 @@ defmodule Order do
     def calculate_cost_temp() do
         :rand.uniform(10)
     end
-
+    
     def calculate_cost(ordered_floor, order_map, current_floor, current_direction, elevator_number) do
+        #Better name for checking_floor?
+        #@m_floors should maybe be exchanged by @m_floors - 1
+
+
         {checking_floor, desired_direction} =   cond do 
                                                     current_direction == :down and ordered_floor > current_floor ->
                                                         {0, :up}
@@ -68,7 +72,7 @@ defmodule Order do
                                         |> elem(0) |> elem(1) |> List.duplicate(1) 
                                         |> Enum.concat([current_floor, ordered_floor]) 
                                         |> Enum.max()
-        min_floor = orders_to_be_served |> Enum.min_by(fn x -> elem(elem(x,0),1) end ,&>=/2, fn -> {{0,@max_floor, :dummy},false} end) 
+        min_floor = orders_to_be_served |> Enum.min_by(fn x -> elem(elem(x,0),1) end ,&>=/2, fn -> {{0,@m_floor, :dummy},false} end) 
                                         |> elem(0) |> elem(1) |> List.duplicate(1) 
                                         |> Enum.concat([current_floor, ordered_floor]) 
                                         |> Enum.min()

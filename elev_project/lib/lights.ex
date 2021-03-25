@@ -9,7 +9,6 @@ defmodule Lights do
         order_map = Order.get_order_map()
         {driving_elevator, order_map} = Map.pop(order_map, :elevator_number)
         orders_grouped_by_floor = Enum.group_by(order_map, fn {{elev_num,floor,type}, value} -> {floor,type} end, fn {{elev_num,floor,type},value} -> value end)
-        
         Enum.each(orders_grouped_by_floor, fn orders -> update_lights(orders, driving_elevator) end)
         
         Process.sleep(700)
@@ -23,7 +22,6 @@ defmodule Lights do
             :cab -> set_light(floor, type, values, driving_elevator)
         end
     end
-
 
     def set_light(floor, :cab, values, driving_elevator) do
         case Enum.at(values,driving_elevator-1) do
