@@ -1,13 +1,15 @@
 defmodule ElevProject.Supervisor do
     use Supervisor
     @floors 3
-    def start_link() do
-        Supervisor.start_link(__MODULE__, :ok, name: __MODULE__)
+    def start_link(port, elevator_number) do
+        Supervisor.start_link(__MODULE__, {port,elevator_number} , name: __MODULE__)
     end
 
-    def init(:ok) do
+    def init({port,elevator_number}) do
         children = [
-            {HardwareSupervisor, @floors}
+            {HardwareSupervisor, [port]},
+            {Order, [elevator_number]},
+            {Lights, []}
         ]
 
         opts = [strategy: :one_for_one]

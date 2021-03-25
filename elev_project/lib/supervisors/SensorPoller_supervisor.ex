@@ -15,7 +15,7 @@ defmodule SensorPoller.Supervisor do
     end
 
 
-     def get_all_sensor_types do
+    def get_all_sensor_types do
         [:floor_sensor, :obstruction_sensor]
     end
 
