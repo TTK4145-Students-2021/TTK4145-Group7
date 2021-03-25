@@ -21,6 +21,9 @@ defmodule Elevator do
     GenStateMachine.cast(@name, {:obstruction, obstruction_state})
   end
 
+  def get_elevator_state() do
+    GenStateMachine.call(@name, :get_elevator_state) #Need timeout?
+  end
 
   # Server (callbacks)
   @impl true
@@ -122,5 +125,12 @@ defmodule Elevator do
   def handle_event(:cast, {:obstruction, obstruction_state}, _state, data) when obstruction_state == :off do
     new_data = %{data | obstruction: :off}
     {:keep_state, new_data}
+  end
+
+
+
+  @impl true
+  def handle_event({:call, from}, :get_elevator_state, _state, data) do
+    {:keep_state_and_data, [{:reply, from, data}]}
   end
 end

@@ -34,6 +34,10 @@ defmodule Order do
         GenServer.call(@name, :get_elevator_number)
     end
 
+    def test_finish_order() do
+        GenServer.cast(@name, :new_order)
+    end
+
     def get_active_orders(elevator_number, floor_range, order_map) do
         order_map |> Enum.filter(fn x -> elem(elem(x,0),0) === elevator_number end) 
                   |> Enum.filter(fn x -> elem(x,1) end) 
@@ -129,4 +133,12 @@ defmodule Order do
         {:reply, order_map, order_map}
     end
 
+    @impl true
+    def handle_cast(:new_order, order_map) do
+        order_map = Map.put(order_map, {1, 2, :hall_down}, false)
+        order_map = Map.put(order_map, {1, 2, :cab}, false)
+        order_map = Map.put(order_map, {1, 2, :hall_up}, false)
+        #IO.inspect(order_map)
+        {:noreply, order_map}
+    end
 end
