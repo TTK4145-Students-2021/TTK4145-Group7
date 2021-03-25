@@ -34,6 +34,10 @@ defmodule Order do
         GenServer.call(@name, :get_elevator_number)
     end
 
+    def test_finish_order() do
+        GenServer.cast(@name, :new_order)
+    end
+
     def get_active_orders(order_map, elevator_number, direction, floor_range \\ 0..@m_floors) do
         filter_out_order_type = if direction === :down do :hall_up else :hall_down end
         order_map |> Enum.filter(fn x -> elem(elem(x,0),0) === elevator_number end) 
@@ -93,6 +97,7 @@ defmodule Order do
     def init(elevator_number) do
         order_map = create_order_map(@n_elevators, @m_floors)
         order_map = Map.put(order_map, :elevator_number, elevator_number)
+        IO.inspect(order_map)
         {:ok, order_map}
     end
 
@@ -101,7 +106,7 @@ defmodule Order do
         #IO.inspect(node_costs)        
         {cost, winning_elevator} = Enum.min(Keyword.values(node_costs))
         #IO.inspect({cost,winning_elevator})
-        order_map = Map.put(order_map, {winning_elevator, floor, order_type}, 1)
+        order_map = Map.put(order_map, {winning_elevator, floor, order_type}, true)
         IO.inspect(order_map)
         {:reply, :ok, order_map}
     end
@@ -137,4 +142,12 @@ defmodule Order do
         {:reply, order_map, order_map}
     end
 
+    @impl true
+    def handle_cast(:new_order, order_map) do
+        order_map = Map.put(order_map, {1, 2, :hall_down}, false)
+        order_map = Map.put(order_map, {1, 2, :cab}, false)
+        order_map = Map.put(order_map, {1, 2, :hall_up}, false)
+        #IO.inspect(order_map)
+        {:noreply, order_map}
+    end
 end

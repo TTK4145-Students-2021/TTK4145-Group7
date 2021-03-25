@@ -8,33 +8,34 @@ defmodule Lights do
     def run() do
         order_map = Order.get_order_map()
         {driving_elevator, order_map} = Map.pop(order_map, :elevator_number)
-        Enum.each(order_map, fn order -> clear_lights(order) end)
-        Enum.each(order_map, fn order -> update_light(order, driving_elevator) end)
-        Process.sleep(500)
+        orders_grouped_by_floor = Enum.group_by(order_map, fn {{elev_num,floor,type}, value} -> {floor,type} end, fn {{elev_num,floor,type},value} -> value end)
+        
+        Enum.each(orders_grouped_by_floor, fn orders -> update_lights(orders, driving_elevator) end)
+        
+        Process.sleep(700)
         run()
     end
 
-
-    def clear_lights({{elevator_number, floor, order_type}, value}) do
-        Driver.set_order_button_light(order_type, floor, :off) #Does a bit too much might need refactoring.
-    end
-
-
-    def update_light({{elevator_number, floor, order_type}, value}, driving_elevator) when elevator_number === driving_elevator do
-        case value do
-            1 -> Driver.set_order_button_light(order_type, floor, :on)
-            0 -> #OTHING
+    def update_lights({{floor, type}, values}, driving_elevator) do
+        case type do
+            :hall_up -> set_light(floor, type, values)
+            :hall_down -> set_light(floor, type, values)
+            :cab -> set_light(floor, type, values, driving_elevator)
         end
     end
 
-    def update_light({{elevator_number, floor, order_type}, value}, driving_elevator) when order_type === :hall_up or order_type === :hall_down do
-        case value do
-            1 -> Driver.set_order_button_light(order_type, floor, :on)
-            0 -> #NOTHING
+
+    def set_light(floor, :cab, values, driving_elevator) do
+        case Enum.at(values,driving_elevator-1) do
+            true -> Driver.set_order_button_light(:cab, floor, :on)
+            false -> Driver.set_order_button_light(:cab, floor, :off)
         end
     end
-    def update_light({{elevator_number, floor, order_type}, value}, driving_elevator) do
-        #Do nothing baby
-    end
 
+    def set_light(floor, order_type, values) do
+        case Enum.any?(values) do
+            true-> Driver.set_order_button_light(order_type, floor, :on)
+            false->Driver.set_order_button_light(order_type, floor, :off)
+        end
+    end
 end
