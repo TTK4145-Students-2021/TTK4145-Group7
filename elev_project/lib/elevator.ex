@@ -20,7 +20,8 @@ defmodule Elevator do
   def obstruction_switch(obstruction_state) do
     GenStateMachine.cast(@name, {:obstruction, obstruction_state})
   end
-  
+
+
   # Server (callbacks)
   @impl true
   def init(_) do

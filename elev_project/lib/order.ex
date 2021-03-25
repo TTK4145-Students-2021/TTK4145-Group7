@@ -65,12 +65,13 @@ defmodule Order do
         
         travel_distance = current_floor + abs(current_floor - checking_floor) + abs(checking_floor - ordered_floor)
         n_stops = Enum.count(orders_to_be_served)
+        @travel_cost * travel_distance + @stop_cost * n_stops
     end
     
     def create_order_map(num_of_elevators, total_floors, order_map \\ %{}) do     
         order_map = Enum.reduce(ButtonPoller.Supervisor.get_all_buttons(total_floors), order_map,
                     fn element, order_map -> %{floor: floor, type: type} = element; 
-                    Map.put(order_map, {num_of_elevators, floor, type}, 0) end)
+                    Map.put(order_map, {num_of_elevators, floor, type}, false) end)
 
         if num_of_elevators > 1 do
             order_map = create_order_map(num_of_elevators-1, total_floors, order_map)
@@ -83,6 +84,7 @@ defmodule Order do
     def init(elevator_number) do
         order_map = create_order_map(@n_elevators, @m_floors)
         order_map = Map.put(order_map, :elevator_number, elevator_number)
+        IO.inspect(order_map)
         {:ok, order_map}
     end
 
@@ -91,7 +93,7 @@ defmodule Order do
         #IO.inspect(node_costs)        
         {cost, winning_elevator} = Enum.min(Keyword.values(node_costs))
         #IO.inspect({cost,winning_elevator})
-        order_map = Map.put(order_map, {winning_elevator, floor, order_type}, 1)
+        order_map = Map.put(order_map, {winning_elevator, floor, order_type}, true)
         IO.inspect(order_map)
         {:reply, :ok, order_map}
     end
