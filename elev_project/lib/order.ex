@@ -86,7 +86,7 @@ defmodule Order do
 
         IO.inspect(orders_to_be_served)
 
-        n_stops = Enum.count(orders_to_be_served) #Does not count stop at ordered floor, but counts stop at ordered floor if the order is not cleared.
+        n_stops = Enum.count(orders_to_be_served) #Does not count stop at ordered floor, but counts stop at current floor if the order is not cleared.
 
         cost =  @travel_cost * travel_distance + @stop_cost * n_stops 
 
