@@ -14,9 +14,11 @@ defmodule Elevator do
     GenStateMachine.cast(@name, {:serve_floor, floor})
   end
 
-  def new_order(at_floor) do
+  def new_order(at_floor) when is_integer(at_floor) do
     GenStateMachine.cast(@name, {:new_order, at_floor})
   end
+  
+  def new_order(nil) do end
 
   def obstruction_switch(obstruction_state) do
     GenStateMachine.cast(@name, {:obstruction, obstruction_state})
@@ -43,6 +45,7 @@ defmodule Elevator do
   def handle_event(:cast, {:serve_floor, floor}, :moving, data) when floor == data.order do
     Driver.set_motor_direction(:stop)
     Driver.set_door_open_light(:on)
+    Order.order_completed(floor)
     Process.send_after(@name, :close_door, @door_open_time)
     new_data = %{data | floor: floor, order: nil}
     {:next_state, :door_open, new_data}
@@ -96,6 +99,7 @@ defmodule Elevator do
   @impl true
   def handle_event(:cast, {:new_order, at_floor}, :idle, data) do
     Driver.set_door_open_light(:on)
+    Order.order_completed(at_floor)
     Process.send_after(@name, :close_door, @door_open_time)
     {:next_state, :door_open, data}
   end
@@ -141,8 +145,6 @@ defmodule Elevator do
     new_data = %{data | obstruction: :off}
     {:keep_state, new_data}
   end
-
-
 
   @impl true
   def handle_event({:call, from}, :get_elevator_state, _state, data) do
