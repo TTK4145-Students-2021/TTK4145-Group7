@@ -1,22 +1,20 @@
 defmodule SensorPoller.Supervisor do
-    use Supervisor
-    def start_link([]) do 
-        Supervisor.start_link(__MODULE__,{:ok}, name: Sensor.Supervisor)
-    end
+  use Supervisor
 
-    def init({:ok}) do
+  def start_link([]) do
+    Supervisor.start_link(__MODULE__, {:ok}, name: Sensor.Supervisor)
+  end
 
-        options = [strategy: :one_for_one, name: Sensor.Supervisor]
+  def init({:ok}) do
+    options = [strategy: :one_for_one, name: Sensor.Supervisor]
 
-        children = get_all_sensor_types() |> Enum.map(fn sensor -> SensorPoller.child_spec(sensor) end)
+    children =
+      get_all_sensor_types() |> Enum.map(fn sensor -> SensorPoller.child_spec(sensor) end)
 
-        Supervisor.init(children,options)
+    Supervisor.init(children, options)
+  end
 
-    end
-
-
-    def get_all_sensor_types do
-        [:floor_sensor, :obstruction_sensor]
-    end
-
+  def get_all_sensor_types do
+    [:floor_sensor, :obstruction_sensor]
+  end
 end
