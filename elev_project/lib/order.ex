@@ -147,7 +147,7 @@ defmodule Order do
     @impl true
     def handle_call({:calc_cost, floor, :cab, elevator_that_sent_order}, _from, {elevator_number, order_map}) do
         cost = if(elevator_number === elevator_that_sent_order) do 0 else 10 end
-        {:reply, {cost, elevator_number}, {elevator_number, order_map}}
+        {:reply, {elevator_number, cost}, {elevator_number, order_map}}
     end
 
     @impl true

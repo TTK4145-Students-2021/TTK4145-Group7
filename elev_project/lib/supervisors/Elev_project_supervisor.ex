@@ -12,7 +12,7 @@ defmodule ElevProject.Supervisor do
             {Lights, []}
         ]
 
-        opts = [strategy: :one_for_one]
+        opts = [strategy: :one_for_all]
         Supervisor.init(children, opts)
     end
 end
