@@ -1,7 +1,7 @@
 defmodule Order do
 
     @name :order_server
-    @n_elevators 2
+    @n_elevators 1
     @m_floors 3
     @stop_cost 1
     @travel_cost 1
@@ -20,6 +20,7 @@ defmodule Order do
         {node_costs, bad_nodes1} = GenServer.multi_call(@name, {:calc_cost, floor, order_type, elevator_number}) #timeout #Get all the costs back from all the elevators
         #Do we need anything else here?
         {replies2, bad_nodes2} = GenServer.multi_call(Node.list(), @name, {:new_order, floor, order_type, node_costs}) #timeout #Sends the result of the auction to every elevator
+        IO.puts("Cost:")
         IO.inspect(node_costs)
         n = Enum.count(replies2)
         #How to handle single elevator mode?
@@ -42,10 +43,11 @@ defmodule Order do
 
     def get_active_orders(order_map, elevator_number, direction, floor_range \\ 0..@m_floors) do
         filter_out_order_type = if direction === :down do :hall_up else :hall_down end
-        order_map |> Enum.filter(fn x -> elem(elem(x,0),0) === elevator_number end) 
+
+        order_map |> Enum.filter(fn x -> {{elev_n, _, _}, _} = x; elev_n === elevator_number end) 
                   |> Enum.filter(fn x -> elem(x,1) end) 
-                  |> Enum.filter(fn x -> elem(elem(x,0),1) in floor_range end)
-                  |> Enum.filter(fn x -> elem(elem(x,0),2) !== filter_out_order_type end)
+                  |> Enum.filter(fn x -> {{_, floor, _}, _} = x; floor in floor_range end)
+                  |> Enum.filter(fn x -> {{_, _, order_type}, _} = x; order_type !== filter_out_order_type end)
     end
 
     def calculate_cost_temp() do
@@ -69,12 +71,13 @@ defmodule Order do
         orders_to_be_served =   get_active_orders(order_map, elevator_number, current_direction, current_floor..checking_floor)
                                 |> Enum.concat(get_active_orders(order_map, elevator_number, desired_direction, checking_floor..ordered_floor))
                                 |> Enum.dedup()
+                                |> Enum.filter(fn x -> {{_, floor, _}, _} = x; floor !== ordered_floor end)
 
-        max_floor = orders_to_be_served |> Enum.max_by(fn x -> elem(elem(x,0),1) end, &>=/2, fn -> {{0,0, :dummy},false} end) 
+        max_floor = orders_to_be_served |> Enum.max_by(fn x -> {{_, floor, _}, _} = x; floor end, &>=/2, fn -> {{0,0, :dummy},false} end) 
                                         |> elem(0) |> elem(1) |> List.duplicate(1) 
                                         |> Enum.concat([current_floor, ordered_floor]) 
                                         |> Enum.max()
-        min_floor = orders_to_be_served |> Enum.min_by(fn x -> elem(elem(x,0),1) end ,&>=/2, fn -> {{0,@m_floor, :dummy},false} end) 
+        min_floor = orders_to_be_served |> Enum.min_by(fn x -> {{_, floor, _}, _} = x; floor end ,&>=/2, fn -> {{0,@m_floor, :dummy},false} end) 
                                         |> elem(0) |> elem(1) |> List.duplicate(1) 
                                         |> Enum.concat([current_floor, ordered_floor]) 
                                         |> Enum.min()
@@ -82,9 +85,17 @@ defmodule Order do
         checking_floor = if current_direction == :down do min_floor else max_floor end
         travel_distance = abs(current_floor - checking_floor) + abs(checking_floor - ordered_floor)
 
-        n_stops = Enum.count(orders_to_be_served) #Does not count stop at ordered floor
+        IO.inspect(orders_to_be_served)
+
+        n_stops = Enum.count(orders_to_be_served) #Does not count stop at ordered floor, but counts stop at ordered floor if the order is not cleared.
+
+        cost =  @travel_cost * travel_distance + @stop_cost * n_stops 
+
+        #IO.puts("Travel_distance: #{travel_distance}")
+        #IO.puts("N_stops: #{n_stops}")
+        #IO.puts("Cost: #{cost}")
         
-        @travel_cost * travel_distance + @stop_cost * n_stops 
+        cost       
     end
     
     def create_order_map(num_of_elevators, total_floors, order_map \\ %{}) do     
@@ -108,9 +119,7 @@ defmodule Order do
 
     @impl true
     def handle_call({:new_order, floor, order_type, node_costs}, _from, {elevator_number, order_map}) do
-        #IO.inspect(node_costs)        
         {cost, winning_elevator} = Enum.min(Keyword.values(node_costs))
-        #IO.inspect({cost,winning_elevator})
         order_map = Map.put(order_map, {winning_elevator, floor, order_type}, true)
         IO.inspect(order_map)
         {:reply, :ok, {elevator_number, order_map}}
@@ -118,24 +127,19 @@ defmodule Order do
 
     @impl true
     def handle_call(:get_elevator_number, _from, {elevator_number, order_map}) do
-        #elevator_number = Map.fetch!(order_map, :elevator_number)
         {:reply, elevator_number, {elevator_number, order_map}}
     end
 
 
     @impl true
     def handle_call({:calc_cost, floor, :cab, elevator_that_sent_order}, _from, {elevator_number, order_map}) do
-        #current_elevator = Map.fetch!(order_map, :elevator_number)
         cost = if(elevator_number === elevator_that_sent_order) do 0 else 10 end
-        #IO.inspect({cost, current_elevator})
         {:reply, {cost, elevator_number}, {elevator_number, order_map}}
     end
 
     @impl true
     def handle_call({:calc_cost, floor, order_type, elevator_number}, _from, {elevator_number, order_map}) do #Is elevator number needed here?
-        # Calculate the cost of THIS elevator to take the given order
-        #current_elevator = Map.fetch!(order_map, :elevator_number)
-        
+        # Calculate the cost of THIS elevator to take the given order        
         cost = calculate_cost_temp()
 
         {:reply, {cost, elevator_number}, {elevator_number, order_map}}
@@ -155,8 +159,6 @@ defmodule Order do
         {:noreply, {elevator_number, order_map}}
     end
 
-    #(ordered_floor, order_map, current_floor, current_direction, elevator_number) 
-
     @impl true
     def handle_info(:check_for_orders, {current_elevator, order_map}) do
         %{direction: direction, floor: floor, obstruction: _obstruction, order: _order} = Elevator.get_elevator_state()
@@ -164,7 +166,7 @@ defmodule Order do
         IO.puts floor
         current_active_orders = Enum.filter(order_map, fn x -> {{elev_nr, _, _}, _} = x; elev_nr === current_elevator end)
         IO.inspect(current_active_orders)
-        #cost = calculate_cost()
+        #cost = calculate_cost(ordered_floor, order_map, current_floor, current_direction, elevator_number)
         Process.send_after(@name, :check_for_orders, 500)
         {:noreply, {current_elevator, order_map}}
     end
