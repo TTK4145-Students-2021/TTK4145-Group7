@@ -6,8 +6,7 @@ defmodule Lights do
     end
 
     def run() do
-        order_map = Order.get_order_map()
-        {driving_elevator, order_map} = Map.pop(order_map, :elevator_number)
+        {driving_elevator, order_map} = Order.get_order_state()
         orders_grouped_by_floor = Enum.group_by(order_map, fn {{elev_num,floor,type}, value} -> {floor,type} end, fn {{elev_num,floor,type},value} -> value end)
         Enum.each(orders_grouped_by_floor, fn orders -> update_lights(orders, driving_elevator) end)
         
