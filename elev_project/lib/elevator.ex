@@ -26,7 +26,6 @@ defmodule Elevator do
   end
 
   def get_elevator_state() do
-    # Need timeout?
     GenStateMachine.call(@name, :get_elevator_state)
   end
 
@@ -87,7 +86,6 @@ defmodule Elevator do
 
   @impl true
   def handle_event(:cast, {:new_order, at_floor}, :idle, data) when at_floor !== data.floor do
-    # flawed but temporary :)
     new_data =
       case at_floor < data.floor do
         true ->
@@ -112,7 +110,6 @@ defmodule Elevator do
     {:next_state, :door_open, data}
   end
 
-  # Beware this might make the elevator move out of bounds, hopefully fixed in order
   @impl true
   def handle_event(:cast, {:new_order, at_floor}, :moving, data) do
     new_data = %{data | order: at_floor}

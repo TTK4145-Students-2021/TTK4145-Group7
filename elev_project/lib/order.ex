@@ -178,8 +178,6 @@ defmodule Order do
 
     travel_distance = abs(current_floor - checking_floor) + abs(checking_floor - ordered_floor)
 
-    IO.inspect(orders_to_be_served)
-
     # Does not count stop at ordered floor, but counts stop at current floor if the order is not cleared.
     n_stops = Enum.count(orders_to_be_served)
 
@@ -227,7 +225,6 @@ defmodule Order do
       end)
 
     order_map = Map.put(order_map, {winning_elevator, floor, order_type}, true)
-    # IO.inspect(order_map)
     {:reply, :ok, {elevator_number, order_map}}
   end
 
@@ -282,11 +279,10 @@ defmodule Order do
         _from,
         {current_elevator, order_map}
       ) do
-    IO.puts("Elevator:" <> to_string(elevator_number) <> " Floor: " <> to_string(floor))
     order_map = Map.put(order_map, {elevator_number, floor, :hall_down}, false)
     order_map = Map.put(order_map, {elevator_number, floor, :cab}, false)
     order_map = Map.put(order_map, {elevator_number, floor, :hall_up}, false)
-    Process.send_after(@name, :check_for_orders, 2_500)
+    #Process.send_after(@name, :check_for_orders, 2_500)
     {:reply, :ok, {current_elevator, order_map}}
   end
 
@@ -329,9 +325,8 @@ defmodule Order do
         nil
       end
 
-    # The current floor will get cost 0 even when elevator is moving, will cause a crash
+    IO.puts("Without filter")
     Elevator.new_order(destination)
-
     {:noreply, {current_elevator, order_map}}
   end
 
@@ -362,7 +357,7 @@ defmodule Order do
                    current_floor,
                    current_direction,
                    current_elevator
-                 ), ordered_floor}
+                ), ordered_floor}
               ]
           end)
 
@@ -378,6 +373,7 @@ defmodule Order do
         nil
       end
 
+    IO.puts("With filter")
     Elevator.new_order(destination)
     {:noreply, {current_elevator, order_map}}
   end
