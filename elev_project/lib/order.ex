@@ -77,18 +77,20 @@ defmodule Order do
   def calculate_cost(ordered_floor, order_map, elevator_current_floor, elevator_direction, elevator_current_order, elevator_number) do
     # Better name for checking_floor?
     # @m_floors should maybe be exchanged by @m_floors - 1
-    elevator_current_order = if !elevator_current_order do elevator_current_floor else elevator_current_order end
 
     {checking_floor, desired_direction} =
       cond do
-        elevator_direction == :down and ordered_floor > elevator_current_order ->
+        elevator_direction == :down and ordered_floor > elevator_current_floor ->
           {0, :up}
 
-        elevator_direction == :up and ordered_floor < elevator_current_order ->
+        elevator_direction == :up and ordered_floor < elevator_current_floor ->
           {@m_floors, :down}
 
+        elevator_current_order !== nil and ordered_floor === elevator_current_floor ->
+          {elevator_current_order, if elevator_direction === :down do :up else :down end}
+
         true ->
-          {elevator_current_order, elevator_direction}
+          {elevator_current_floor, elevator_direction}
       end
 
     orders_to_be_served =
@@ -153,7 +155,7 @@ defmodule Order do
         max_floor
       end
 
-    travel_distance = abs(elevator_current_order - checking_floor) + abs(checking_floor - ordered_floor) + abs(elevator_current_order-elevator_current_floor)
+    travel_distance = abs(elevator_current_floor - checking_floor) + abs(checking_floor - ordered_floor)
 
     # Does not count stop at ordered floor, but counts stop at current floor if the order is not cleared.
     n_stops = Enum.count(orders_to_be_served)
