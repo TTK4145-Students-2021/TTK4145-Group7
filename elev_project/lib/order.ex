@@ -100,20 +100,21 @@ defmodule Order do
     :rand.uniform(10)
   end
 
-  def calculate_cost(ordered_floor, order_map, current_floor, current_direction, elevator_number) do
+  def calculate_cost(ordered_floor, order_map, current_floor, current_direction, current_goal_floor, elevator_number) do
     # Better name for checking_floor?
     # @m_floors should maybe be exchanged by @m_floors - 1
+    current_goal_floor = if !current_goal_floor do current_floor
 
     {checking_floor, desired_direction} =
       cond do
-        current_direction == :down and ordered_floor > current_floor ->
+        current_direction == :down and ordered_floor > current_goal_floor ->
           {0, :up}
 
-        current_direction == :up and ordered_floor < current_floor ->
+        current_direction == :up and ordered_floor < current_goal_floor ->
           {@m_floors, :down}
 
         true ->
-          {current_floor, current_direction}
+          {current_goal_floor, current_direction}
       end
 
     orders_to_be_served =
@@ -121,7 +122,7 @@ defmodule Order do
         order_map,
         elevator_number,
         current_direction,
-        current_floor..checking_floor
+        current_goal_floor..checking_floor
       )
       |> Enum.concat(
         get_active_orders(
@@ -150,7 +151,7 @@ defmodule Order do
       |> elem(0)
       |> elem(1)
       |> List.duplicate(1)
-      |> Enum.concat([current_floor, ordered_floor])
+      |> Enum.concat([current_goal_floor, ordered_floor])
       |> Enum.max()
 
     min_floor =
@@ -166,7 +167,7 @@ defmodule Order do
       |> elem(0)
       |> elem(1)
       |> List.duplicate(1)
-      |> Enum.concat([current_floor, ordered_floor])
+      |> Enum.concat([current_goal_floor, ordered_floor])
       |> Enum.min()
 
     checking_floor =
@@ -176,18 +177,13 @@ defmodule Order do
         max_floor
       end
 
-    travel_distance = abs(current_floor - checking_floor) + abs(checking_floor - ordered_floor)
+    travel_distance = abs(current_goal_floor - checking_floor) + abs(checking_floor - ordered_floor) + abs(current_goal_floor-current_floor)
 
     # Does not count stop at ordered floor, but counts stop at current floor if the order is not cleared.
     n_stops = Enum.count(orders_to_be_served)
 
-    cost = @travel_cost * travel_distance + @stop_cost * n_stops
-
-    # IO.puts("Travel_distance: #{travel_distance}")
-    # IO.puts("N_stops: #{n_stops}")
-    # IO.puts("Cost: #{cost}")
-
-    cost
+    @travel_cost * travel_distance + @stop_cost * n_stops
+  
   end
 
   def create_order_map(num_of_elevators, total_floors, order_map \\ %{}) do
