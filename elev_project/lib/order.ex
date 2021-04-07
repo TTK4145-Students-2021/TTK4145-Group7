@@ -4,12 +4,51 @@ defmodule Order do
   @m_floors 3
   @stop_cost 1
   @travel_cost 1
+  @max_cost (@m_floors * (@stop_cost+@travel_cost))
   use GenServer
 
   def start_link([args]) do
     {:ok, pid} = GenServer.start_link(__MODULE__, args, name: @name)
     Process.send_after(@name, :check_for_orders, 500)
     {:ok, pid}
+  end
+
+  def send_watchdog_order(order) do
+    %{elevator_number: timed_out_elevator_number, floor: floor, type: order_type} = order
+    #Check this :)
+     elevator_number = get_elevator_number()
+
+    # timeout #Get all the costs back from all the elevators
+    {node_costs, bad_nodes_cost_calc} =
+      GenServer.multi_call(@name, {:calc_cost, floor, order_type, elevator_number})
+    
+    node_costs = Keyword.values(node_costs)
+    IO.inspect(node_costs)
+    node_costs = node_costs |>
+      Enum.map(fn x -> 
+        {elev_n, cost} = x;
+        cost = if elev_n === timed_out_elevator_number do 10 + @max_cost else cost end
+        {elev_n, cost}
+      end)
+
+    
+    {acks, bad_nodes_ack} =
+      GenServer.multi_call(Node.list(), @name, {:new_order, floor, order_type, node_costs})
+
+    IO.puts("Cost:")
+    IO.inspect(node_costs)
+    n = Enum.count(acks)
+    # How to handle single elevator mode?
+    n = 1
+
+    if n > 0 or order_type === :cab do
+      GenServer.call(@name, {:new_order, floor, order_type, node_costs})
+    end
+
+    node_costs
+    
+
+
   end
 
   def send_IO_order(order) do
@@ -22,6 +61,7 @@ defmodule Order do
 
     # Do we need anything else here?
     # timeout #Sends the result of the auction to every elevator
+    node_costs = Keyword.values(node_costs)
     {acks, bad_nodes_ack} =
       GenServer.multi_call(Node.list(), @name, {:new_order, floor, order_type, node_costs})
 
@@ -61,22 +101,17 @@ defmodule Order do
     order_map
     |> Enum.filter(fn x ->
       {{order_elevator_number, _, _}, _} = x
-      order_elevator_number === elevator_number
-    end)
+      order_elevator_number === elevator_number end)
     |> Enum.filter(fn x -> elem(x, 1) end)
     |> Enum.filter(fn x ->
       {{_, floor, _}, _} = x
-      floor in floor_range
-    end)
+      floor in floor_range end)
     |> Enum.filter(fn x ->
       {{_, _, order_type}, _} = x
-      order_type !== filter_out_order_type
-    end)
+      order_type !== filter_out_order_type end)
   end
 
   def calculate_cost(ordered_floor, order_map, elevator_current_floor, elevator_direction, elevator_current_order, elevator_number) do
-    # Better name for checking_floor?
-    # @m_floors should maybe be exchanged by @m_floors - 1
 
     {checking_floor, desired_direction} =
       cond do
@@ -99,8 +134,7 @@ defmodule Order do
         elevator_number,
         elevator_direction,
         :filter_active,
-        elevator_current_floor..checking_floor
-      )
+        elevator_current_floor..checking_floor)
       |> Enum.concat(
         get_active_orders(
           order_map,
@@ -124,8 +158,7 @@ defmodule Order do
           floor
         end,
         &>=/2,
-        fn -> {{0, 0, :dummy}, false} end
-      )
+        fn -> {{0, 0, :dummy}, false} end)
       |> elem(0)
       |> elem(1)
       |> List.duplicate(1)
@@ -193,12 +226,10 @@ defmodule Order do
         {elevator_number, order_map}
       ) do
     {winning_elevator, cost} =
-      Enum.min_by(Keyword.values(node_costs), fn x ->
-        {_, cost} = x
-        cost
-      end)
-
+      Enum.min_by(node_costs, fn x -> elem(x,1) end)
+    
     order_map = Map.put(order_map, {winning_elevator, floor, order_type}, true)
+    # WatchDog.new_order(%{elevator_number: winning_elevator, floor: floor, type: order_type})
     {:reply, :ok, {elevator_number, order_map}}
   end
 
@@ -219,7 +250,7 @@ defmodule Order do
       if(elevator_number === elevator_that_sent_order) do
         calculate_cost(ordered_floor, order_map, elevator_current_floor, elevator_direction, elevator_current_order, elevator_number)
       else
-        100
+        @max_cost + 10
       end
 
     {:reply, {elevator_number, cost}, {elevator_number, order_map}}
@@ -249,14 +280,11 @@ defmodule Order do
   end
 
   @impl true
-  def handle_call(
-        {:order_completed, floor, elevator_number},
-        _from,
-        {current_elevator, order_map}
-      ) do
+  def handle_call({:order_completed, floor, elevator_number}, _from, {current_elevator, order_map}) do
     order_map = Map.put(order_map, {elevator_number, floor, :hall_down}, false)
     order_map = Map.put(order_map, {elevator_number, floor, :cab}, false)
     order_map = Map.put(order_map, {elevator_number, floor, :hall_up}, false)
+    #WatchDog.complete_order(%{elevator_number: elevator_number, floor: floor, type: order_type})
     {:reply, :ok, {current_elevator, order_map}}
   end
 

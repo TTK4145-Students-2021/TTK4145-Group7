@@ -20,10 +20,10 @@ ElevProject.Supervisor.start_link("port", "elevator_number")
 - [x] State machine of the elevator
 - [x] Finish light module
 - [x] Implement cost function
-- [ ] Test cost function
-- [ ] Implement getting the next order from order_map using cost function?
+- [x] Test cost function
+- [x] Implement getting the next order from order_map using cost function?
 - [ ] Implement watchdog
-- [ ] Finish elevator logic
+- [x] Finish elevator logic
 
 ## Installation as finished module
 
