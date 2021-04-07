@@ -24,6 +24,8 @@ defmodule Order do
     
     node_costs = Keyword.values(node_costs)
     IO.inspect(node_costs)
+
+    # Refactor this shit
     node_costs = node_costs |>
       Enum.map(fn x -> 
         {elev_n, cost} = x;
