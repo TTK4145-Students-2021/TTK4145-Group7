@@ -15,8 +15,10 @@ defmodule Order do
 
   def send_watchdog_order(order) do
     %{elevator_number: timed_out_elevator_number, floor: floor, type: order_type} = order
-    #Check this :)
-     elevator_number = get_elevator_number()
+
+    GenServer.multi_call(@name, {:order_timed_out, order})
+    
+    elevator_number = get_elevator_number()
 
     # timeout #Get all the costs back from all the elevators
     {node_costs, bad_nodes_cost_calc} =
@@ -25,7 +27,7 @@ defmodule Order do
     node_costs = Keyword.values(node_costs)
     IO.inspect(node_costs)
 
-    # Refactor this shit
+    # Refactor this
     node_costs = node_costs |>
       Enum.map(fn x -> 
         {elev_n, cost} = x;
@@ -48,10 +50,8 @@ defmodule Order do
     end
 
     node_costs
-    
-
-
   end
+
 
   def send_IO_order(order) do
     %{floor: floor, type: order_type} = order
@@ -81,12 +81,24 @@ defmodule Order do
   end
 
   def order_completed(floor) do
-    # GenServer.cast(@name, {:order_completed, floor})
     GenServer.multi_call(@name, {:order_completed, floor, get_elevator_number()})
   end
 
   def get_order_state() do
     GenServer.call(@name, :get_order_state)
+  end
+
+
+  def compare_order_states() do  
+    {good_nodes,_b} = GenServer.multi_call(@name, :get_order_state)
+    order_maps = Enum.reduce(Keyword.values(good_nodes), [], fn x, acc -> acc++[elem(x,1)] end)
+    all_orders = Enum.reduce(order_maps, %{}, fn map, acc ->
+                              Map.merge(acc, map, fn _k, v1, v2 ->
+                                  v1 or v2
+                                end)
+                              end)
+
+    GenServer.cast(@name, {:update_order_map, all_orders})
   end
 
   def get_elevator_number() do
@@ -231,7 +243,8 @@ defmodule Order do
       Enum.min_by(node_costs, fn x -> elem(x,1) end)
     
     order_map = Map.put(order_map, {winning_elevator, floor, order_type}, true)
-    # WatchDog.new_order(%{elevator_number: winning_elevator, floor: floor, type: order_type})
+    
+    Task.start(WatchDog, :new_order, [%{elevator_number: winning_elevator, floor: floor, type: order_type}])
     {:reply, :ok, {elevator_number, order_map}}
   end
 
@@ -286,7 +299,14 @@ defmodule Order do
     order_map = Map.put(order_map, {elevator_number, floor, :hall_down}, false)
     order_map = Map.put(order_map, {elevator_number, floor, :cab}, false)
     order_map = Map.put(order_map, {elevator_number, floor, :hall_up}, false)
-    #WatchDog.complete_order(%{elevator_number: elevator_number, floor: floor, type: order_type})
+    Task.start(WatchDog, :complete_order, [%{elevator_number: elevator_number, floor: floor}])
+    {:reply, :ok, {current_elevator, order_map}}
+  end
+
+  @impl true
+  def handle_call({:order_timed_out, order}, _from, {current_elevator, order_map}) do
+    %{elevator_number: timed_out_elevator_number, floor: floor, type: order_type} = order
+    order_map = Map.put(order_map, {timed_out_elevator_number, floor, order_type}, false)
     {:reply, :ok, {current_elevator, order_map}}
   end
 
@@ -332,5 +352,10 @@ defmodule Order do
 
     Elevator.new_order(destination)
     {:noreply, {current_elevator, order_map}}
+  end
+
+  @impl true
+  def handle_cast({:update_order_map, new_order_map}, {elevator_number, order_map}) do
+    {:noreply, {elevator_number, new_order_map}}
   end
 end
