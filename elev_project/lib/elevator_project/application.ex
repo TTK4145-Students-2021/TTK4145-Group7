@@ -1,10 +1,9 @@
-defmodule ElevatorProject.Application do
+defmodule Epicalyx do
   use Application
 
   def start(_type, args) do
     IO.puts("STARTING ELEVATOR")
     IO.inspect(args)
-
     [port, elevator_number] = args
 
     children = [
