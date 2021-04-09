@@ -25,9 +25,6 @@ defmodule ButtonPoller do
       1 ->
         if button_state == :released do
           IO.puts("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
-          # %ElevatorOrder{floor: floor, type: button_type}
-          # Temporary call for testing purposes
-          # Elevator.new_order(floor)
           Order.send_IO_order(%ElevatorOrder{floor: floor, type: button_type})
         end
 
