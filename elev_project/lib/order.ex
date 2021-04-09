@@ -1,6 +1,6 @@
 defmodule Order do
   @name :order_server
-  @n_elevators 2
+  @n_elevators 3
   @m_floors 3
   @stop_cost 1
   @travel_cost 1
@@ -243,8 +243,10 @@ defmodule Order do
       Enum.min_by(node_costs, fn x -> elem(x,1) end)
     
     order_map = Map.put(order_map, {winning_elevator, floor, order_type}, true)
+    if order_type !== :cab do
+      Task.start(WatchDog, :new_order, [%{elevator_number: winning_elevator, floor: floor, type: order_type}])
+    end
     
-    Task.start(WatchDog, :new_order, [%{elevator_number: winning_elevator, floor: floor, type: order_type}])
     {:reply, :ok, {elevator_number, order_map}}
   end
 
@@ -299,6 +301,7 @@ defmodule Order do
     order_map = Map.put(order_map, {elevator_number, floor, :hall_down}, false)
     order_map = Map.put(order_map, {elevator_number, floor, :cab}, false)
     order_map = Map.put(order_map, {elevator_number, floor, :hall_up}, false)
+
     Task.start(WatchDog, :complete_order, [%{elevator_number: elevator_number, floor: floor}])
     {:reply, :ok, {current_elevator, order_map}}
   end
@@ -321,36 +324,35 @@ defmodule Order do
 
     active_orders = get_active_orders(order_map, current_elevator, elevator_direction, :no_filter)
 
-    destination =
-      if Enum.count(active_orders) > 0 do
-        cost = []
 
-        costs =
-          Enum.reduce(active_orders, cost, fn order, cost ->
-            {{_elev_nr, ordered_floor, _type}, _active} = order
+    if Enum.count(active_orders) > 0 and elevator_current_floor !== nil do
+      cost = []
 
-            cost ++
-              [
-                {calculate_cost(
-                   ordered_floor,
-                   order_map,
-                   elevator_current_floor,
-                   elevator_direction,
-                   elevator_current_order,
-                   current_elevator
-                 ), ordered_floor}
-              ]
-          end)
+      costs =
+        Enum.reduce(active_orders, cost, fn order, cost ->
+          {{_elev_nr, ordered_floor, _type}, _active} = order
 
-        {min_cost, dest} = Enum.min(costs)
-        Process.send_after(@name, :check_for_orders, 750)
-        dest
-      else
-        Process.send_after(@name, :check_for_orders, 750)
-        nil
-      end
+          cost ++
+            [
+              {calculate_cost(
+                  ordered_floor,
+                  order_map,
+                  elevator_current_floor,
+                  elevator_direction,
+                  elevator_current_order,
+                  current_elevator
+                ), ordered_floor}
+            ]
+        end)
 
-    Elevator.new_order(destination)
+      {min_cost, dest} = Enum.min(costs)
+      Process.send_after(@name, :check_for_orders, 750)
+      Elevator.new_order(dest)
+    else
+      Process.send_after(@name, :check_for_orders, 750)
+    end
+
+    
     {:noreply, {current_elevator, order_map}}
   end
 
