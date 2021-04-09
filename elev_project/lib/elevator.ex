@@ -37,7 +37,9 @@ defmodule Elevator do
     }
     
     data = %{data | obstruction: Driver.get_obstruction_switch_state(), direction: :down}
+    Driver.set_door_open_light(:off)
     Driver.set_motor_direction(:down)
+
 
     {:ok, :init, data}
   end
