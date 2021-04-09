@@ -74,20 +74,20 @@ defmodule Order do
     end)
   end
 
-  def calculate_cost(ordered_floor, order_map, elevator_current_floor, elevator_direction, elevator_current_order, elevator_number) do
+  def calculate_cost(ordered_floor, order_type, order_map, elevator_current_floor, elevator_direction, elevator_current_order, elevator_number) do
     # Better name for checking_floor?
     # @m_floors should maybe be exchanged by @m_floors - 1
 
     {checking_floor, desired_direction} =
       cond do
-        elevator_direction == :down and ordered_floor > elevator_current_floor ->
-          {0, :up}
-
-        elevator_direction == :up and ordered_floor < elevator_current_floor ->
-          {@m_floors, :down}
-
         elevator_current_order !== nil and ordered_floor === elevator_current_floor ->
           {elevator_current_order, if elevator_direction === :down do :up else :down end}
+
+        (elevator_direction === :down and ordered_floor > elevator_current_floor) or order_type === :hall_up ->
+          {0, :up}
+
+        (elevator_direction === :up and ordered_floor < elevator_current_floor) or order_type === :hall_down ->
+          {@m_floors, :down}
 
         true ->
           {elevator_current_floor, elevator_direction}
@@ -217,7 +217,7 @@ defmodule Order do
           } = Elevator.get_elevator_state()
     cost =
       if(elevator_number === elevator_that_sent_order) do
-        calculate_cost(ordered_floor, order_map, elevator_current_floor, elevator_direction, elevator_current_order, elevator_number)
+        calculate_cost(ordered_floor, :cab, order_map, elevator_current_floor, elevator_direction, elevator_current_order, elevator_number)
       else
         100
       end
@@ -238,7 +238,7 @@ defmodule Order do
       order: elevator_current_order
     } = Elevator.get_elevator_state()
 
-    cost = calculate_cost(floor, order_map, elevator_current_floor, elevator_direction, elevator_current_order, elevator_number)
+    cost = calculate_cost(floor, order_type, order_map, elevator_current_floor, elevator_direction, elevator_current_order, elevator_number)
 
     {:reply, {elevator_number, cost}, {elevator_number, order_map}}
   end
@@ -277,12 +277,13 @@ defmodule Order do
 
         costs =
           Enum.reduce(active_orders, cost, fn order, cost ->
-            {{_elev_nr, ordered_floor, _type}, _active} = order
+            {{_elev_nr, ordered_floor, order_type}, _active} = order
 
             cost ++
               [
                 {calculate_cost(
                    ordered_floor,
+                   order_type,
                    order_map,
                    elevator_current_floor,
                    elevator_direction,
