@@ -25,8 +25,8 @@ defmodule Order do
     {acks, bad_nodes_ack} =
       GenServer.multi_call(Node.list(), @name, {:new_order, floor, order_type, node_costs})
 
-    IO.puts("Cost:")
-    IO.inspect(node_costs)
+    #IO.puts("Cost:")
+    #IO.inspect(node_costs)
     n = Enum.count(acks)
     # How to handle single elevator mode?
     n = 1
@@ -265,43 +265,41 @@ defmodule Order do
     %{
       direction: elevator_direction,
       floor: elevator_current_floor,
+      order: elevator_current_order,
       obstruction: _obstruction,
-      order: elevator_current_order
     } = Elevator.get_elevator_state()
 
     active_orders = get_active_orders(order_map, current_elevator, elevator_direction, :no_filter)
 
-    destination =
-      if Enum.count(active_orders) > 0 do
-        cost = []
+    if Enum.count(active_orders) > 0 do
+      cost = []
 
-        costs =
-          Enum.reduce(active_orders, cost, fn order, cost ->
-            {{_elev_nr, ordered_floor, order_type}, _active} = order
+      costs =
+        Enum.reduce(active_orders, cost, fn order, cost ->
+          {{_elev_nr, ordered_floor, order_type}, _active} = order
 
-            cost ++
-              [
-                {calculate_cost(
-                   ordered_floor,
-                   order_type,
-                   order_map,
-                   elevator_current_floor,
-                   elevator_direction,
-                   elevator_current_order,
-                   current_elevator
-                 ), ordered_floor}
-              ]
-          end)
+          cost ++
+            [
+              {calculate_cost(
+                  ordered_floor,
+                  order_type,
+                  order_map,
+                  elevator_current_floor,
+                  elevator_direction,
+                  elevator_current_order,
+                  current_elevator
+                ), ordered_floor}
+            ]
+        end)
 
-        {min_cost, dest} = Enum.min(costs)
-        Process.send_after(@name, :check_for_orders, 750)
-        dest
-      else
-        Process.send_after(@name, :check_for_orders, 750)
-        nil
-      end
+      {min_cost, destination} = Enum.min(costs)
+      Process.send_after(@name, :check_for_orders, 750)
+      Elevator.new_order(destination)
+    else
+      Process.send_after(@name, :check_for_orders, 750)
 
-    Elevator.new_order(destination)
+    end
+
     {:noreply, {current_elevator, order_map}}
   end
 end

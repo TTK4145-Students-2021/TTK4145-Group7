@@ -91,7 +91,7 @@ defmodule SensorPoller do
 
       :active ->
         IO.puts("Obstruction active!")
-        Elevator.obstruction_switch(:on)
+        Elevator.obstruction_switch(:active)
         sensor_poller(:obstruction_sensor, :active)
     end
   end
@@ -100,7 +100,7 @@ defmodule SensorPoller do
     case Driver.get_obstruction_switch_state() do
       :inactive ->
         IO.puts("Obstruction released!")
-        Elevator.obstruction_switch(:off)
+        Elevator.obstruction_switch(:inactive)
         sensor_poller(:obstruction_sensor, :inactive)
 
       :active ->
