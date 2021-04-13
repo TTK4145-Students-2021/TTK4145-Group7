@@ -30,8 +30,6 @@ defmodule Order do
 
     {winning_elevator, _cost}  = 
     if from === :order_watchdog do
-      GenServer.multi_call(@name, {:order_timed_out, order})
-
       node_costs
       |> Keyword.values()
       |> Enum.map(fn x -> {elev_n, cost} = x;

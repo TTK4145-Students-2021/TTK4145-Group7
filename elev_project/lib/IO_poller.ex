@@ -27,7 +27,7 @@ defmodule ButtonPoller do
 
       state === 1 and button_state == :released ->
         IO.puts("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
-        Order.send_order({:dummy, floor, button_type}, :IO)
+        Order.send_order({:dummy, floor, button_type}, @name)
         :pressed
       
       state === 1 ->

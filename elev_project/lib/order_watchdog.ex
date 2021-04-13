@@ -66,9 +66,4 @@ defmodule WatchDog do
     {:noreply, state}
   end
 
-
-  defp complete_order_helper(order) do
-    GenServer.cast(@name, {:stop_timer, order})
-  end
-
 end
