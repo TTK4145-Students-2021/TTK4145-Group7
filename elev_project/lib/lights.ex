@@ -17,7 +17,7 @@ defmodule Lights do
     #IO.inspect(orders_grouped_by_floor, label: "Grouped")
     Enum.each(orders_grouped_by_floor, fn orders -> update_lights(orders, driving_elevator) end)
 
-    Process.sleep(500)
+    Process.sleep(100)
     run()
   end
 

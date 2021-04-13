@@ -1,19 +1,26 @@
 defmodule Network do
-
-    @n_elevators 3
+    @moduledoc """
+    Network module used to connect and keep the connection to the other elevators.
+    """
+    @n_elevators 2
     use Task
     
     def start_link(_args) do
         Task.start_link(__MODULE__, :ping_nodes, [])
     end
 
-
+    @doc """
+    Gets a list of all the elevator node names in the system.
+    """
     def get_all_nodes do
         Enum.map(1..@n_elevators, fn x -> String.to_atom(to_string(x) <> "@" <> ip_to_string(get_my_ip)) end)
     end
 
-
+    @doc """
+    Pings all the other elevator nodes every seconds, keeps the nodes connected, when they can.'
+    """
     def ping_nodes(connected_nodes \\ 1) do 
+        get_all_nodes |> Enum.each(Node.connect())
         answer = Enum.reduce(get_all_nodes, [], fn node, acc -> acc++[{node, Node.ping(node)}]end)
         #IO.inspect(Node.list)
         #IO.inspect(answer)
@@ -42,13 +49,14 @@ defmodule Network do
   """
 
   def get_my_ip do
-    {:ok, socket} = :gen_udp.open(6789, [active: false, broadcast: true])
-    :ok = :gen_udp.send(socket, {255,255,255,255}, 6789, "test packet")
-    ip = case :gen_udp.recv(socket, 100, 1000) do
-      {:ok, {ip, _port, _data}} -> ip
-      {:error, _} -> {:error, :could_not_get_ip}
-    end
-    :gen_udp.close(socket)
+    {:ok, [{ip, _, _}, _]} = :inet.getif
+    # {:ok, socket} = :gen_udp.open(6789, [active: false, broadcast: true])
+    # :ok = :gen_udp.send(socket, {255,255,255,255}, 6789, "test packet")
+    # ip = case :gen_udp.recv(socket, 100, 1000) do
+    #   {:ok, {ip, _port, _data}} -> ip
+    #   {:error, _} -> {:error, :could_not_get_ip}
+    # end
+    # :gen_udp.close(socket)
     ip
   end
 
@@ -62,6 +70,7 @@ defmodule Network do
   """
 
   def ip_to_string ip do
+
     :inet.ntoa(ip) |> to_string()
   end
 
