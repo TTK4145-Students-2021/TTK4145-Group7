@@ -26,11 +26,8 @@ defmodule WatchDog do
 
   def complete_order(order) do
     {elevator_number, floor, _order_type} = order
-    Enum.each([:hall_up,:hall_down], fn order_type -> complete_order_helper({elevator_number, floor, order_type}) end)
-  end
-
-  defp complete_order_helper(order) do
-    GenServer.cast(@name, {:stop_timer, order})
+    Enum.each([:hall_up,:hall_down], fn type -> GenServer.cast(@name, {:stop_timer, {elevator_number, floor, type}}) end)
+    #complete_order_helper({elevator_number, floor, order_type}) end)
   end
 
   @impl true
@@ -65,7 +62,13 @@ defmodule WatchDog do
   def handle_info({:timed_out, order}, state) do
     IO.puts "Order timed out"
     {_val, state} = Map.pop(state, order)
-    Task.start(Order, :send_order, [order, :watchdog])
+    Task.start(Order, :send_order, [order, @name])
     {:noreply, state}
   end
+
+
+  defp complete_order_helper(order) do
+    GenServer.cast(@name, {:stop_timer, order})
+  end
+
 end

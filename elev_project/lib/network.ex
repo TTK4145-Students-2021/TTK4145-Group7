@@ -17,7 +17,7 @@ defmodule Network do
   end
 
   @doc """
-  Pings all the other elevator nodes every seconds, keeps the nodes connected, when they can.'
+  Pings all the other elevator nodes every seconds, keeps the nodes connected, when they can.
   """
   def ping_nodes(connected_nodes \\ 1) do 
       answer = Enum.reduce(get_all_nodes(), [], fn node, acc -> acc++[{node, Node.ping(node)}]end)

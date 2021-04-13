@@ -1,4 +1,5 @@
 defmodule ButtonPoller do
+  @name :IO_poller
   use Task
 
   def start_link(floor, button_type) do
@@ -25,7 +26,7 @@ defmodule ButtonPoller do
       1 ->
         if button_state == :released do
           IO.puts("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
-          Order.send_order({0, floor, button_type}, :IO)
+          Order.send_order({0, floor, button_type}, @name)
         end
 
         button_poller(floor, button_type, :pressed)
