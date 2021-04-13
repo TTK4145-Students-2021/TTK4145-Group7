@@ -2,7 +2,7 @@ defmodule Elevator do
   use GenStateMachine
 
   @name :elevator_state_machine
-  @door_open_time 2_000
+  @door_open_time Application.fetch_env!(:elevator_project, :door_timer_interval)
   defstruct [:order, :floor, :direction, :obstruction]
 
   # Client

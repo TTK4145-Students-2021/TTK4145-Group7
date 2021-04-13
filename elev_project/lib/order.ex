@@ -2,13 +2,17 @@ defmodule Order do
   # An order always has a key in the form {elevator_number, floor, order_type}
 
   @name :order_server
-  @n_elevators 3  # Elevators are 1-indexed
-  @top_floor 3    # Floors are 0-indexed
-  @stop_cost 1
-  @travel_cost 1
+  #@n_elevators Application.fetch_env!(:elevator_project, :number_of_elevators)  # Elevators are 1-indexed
+  @top_floor Application.fetch_env!(:elevator_project, :top_floor)    # Floors are 0-indexed
+  @stop_cost Application.fetch_env!(:elevator_project, :stop_cost)
+  @travel_cost Application.fetch_env!(:elevator_project, :travel_cost)
   @max_cost (2*@top_floor * (@stop_cost+@travel_cost))
+
   use GenServer
 
+  # def print_n_el() do
+  #   IO.puts(@n_elevators)
+  # end
   def start_link([args]) do
     {:ok, pid} = GenServer.start_link(__MODULE__, args, name: @name)
     Process.send_after(@name, :check_for_orders, 500)
@@ -30,7 +34,7 @@ defmodule Order do
 
     {winning_elevator, _cost}  = 
     if from === :order_watchdog do
-      GenServer.multi_call(@name, {:order_timed_out, order})
+      #GenServer.multi_call(@name, {:order_timed_out, order})
 
       node_costs
       |> Keyword.values()
@@ -52,8 +56,8 @@ defmodule Order do
     n = Enum.count(acks)
     # How to handle single elevator mode?
     #n = 1
-
-    if n > 0 or order_type === :cab or @n_elevators === 1 or from === :order_watchdog do
+    n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
+    if n > 0 or order_type === :cab or n_elevators === 1 or from === :order_watchdog do
       GenServer.call(@name, {:new_order, {winning_elevator, floor, order_type}})
 
       if from === :order_watchdog do
@@ -92,7 +96,8 @@ defmodule Order do
 
   @impl true
   def init(elevator_number) do
-    order_map = create_order_map(@n_elevators, @top_floor)
+    n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
+    order_map = create_order_map(n_elevators, @top_floor)
     state = {elevator_number, order_map}
     {:ok, state}
   end
@@ -103,7 +108,8 @@ defmodule Order do
     order_map = Map.put(order_map, order, true)
 
     #What happens with orders of type cab?
-    if order_type !== :cab and @n_elevators > 1 do
+    n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
+    if order_type !== :cab and n_elevators > 1 do
       Task.start(WatchDog, :new_order, [order])
     end
     

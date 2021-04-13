@@ -2,18 +2,19 @@ defmodule Network do
   @moduledoc """
   Network module used to connect and keep the connection to the other elevators.
   """
-  @n_elevators 3
+  
   use Task
   
-  def start_link(_args) do
+  def start_link([]) do
       Task.start_link(__MODULE__, :ping_nodes, [])
   end
 
   @doc """
   Gets a list of all the elevator node names in the system.
   """
-  def get_all_nodes do
-      Enum.map(1..@n_elevators, fn x -> String.to_atom(to_string(x) <> "@" <> to_string(:inet.ntoa(get_my_ip()))) end)
+  def get_all_nodes() do
+    n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
+    Enum.map(1..n_elevators, fn x -> String.to_atom(to_string(x) <> "@" <> to_string(:inet.ntoa(get_my_ip()))) end)
   end
 
   @doc """

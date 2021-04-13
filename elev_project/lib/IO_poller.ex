@@ -1,5 +1,5 @@
 defmodule ButtonPoller do
-  @name :IO_poller
+  @name :button_poller
   use Task
 
   def start_link(floor, button_type) do
