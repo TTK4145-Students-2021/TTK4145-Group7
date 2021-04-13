@@ -103,6 +103,7 @@ defmodule Elevator do
 
   @impl true
   def handle_event(:cast, {:new_order, at_floor}, :moving, data) do
+    Driver.set_motor_direction(data.direction)
     {:keep_state, %{data | order: at_floor}}
   end
 
