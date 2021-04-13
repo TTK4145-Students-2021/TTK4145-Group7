@@ -1,6 +1,6 @@
 defmodule Order do
   @name :order_server
-  @n_elevators 3
+  @n_elevators 2
   @m_floors 3
   @stop_cost 1
   @travel_cost 1

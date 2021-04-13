@@ -22,8 +22,13 @@ ElevProject.Supervisor.start_link("port", "elevator_number")
 - [x] Implement cost function
 - [x] Test cost function
 - [x] Implement getting the next order from order_map using cost function?
-- [ ] Implement watchdog
+- [x] Implement watchdog
 - [x] Finish elevator logic
+
+
+## Errors
+
+- [ ] Lights flicker when watchdog times out, especially during packet loss.
 
 ## Installation as finished module
 

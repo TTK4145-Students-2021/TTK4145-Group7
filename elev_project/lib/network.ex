@@ -1,13 +1,36 @@
 defmodule Network do
-  @n_elevators 3
+  @moduledoc """
+  Network module used to connect and keep the connection to the other elevators.
+  """
+  @n_elevators 2
   use Task
   
   def start_link(_args) do
       Task.start_link(__MODULE__, :ping_nodes, [])
   end
 
+  @doc """
+  Gets a list of all the elevator node names in the system.
+  """
   def get_all_nodes do
-      Enum.map(1..@n_elevators, fn x -> String.to_atom(to_string(x) <> "@" <> ip_to_string(get_my_ip)) end)
+      Enum.map(1..@n_elevators, fn x -> String.to_atom(to_string(x) <> "@" <> :inet.ntoa(get_my_ip())) end)
+  end
+
+  @doc """
+  Pings all the other elevator nodes every seconds, keeps the nodes connected, when they can.'
+  """
+  def ping_nodes(connected_nodes \\ 1) do 
+    get_all_nodes |> Enum.each(Node.connect())
+    answer = Enum.reduce(get_all_nodes, [], fn node, acc -> acc++[{node, Node.ping(node)}]end)
+    Process.sleep(1_000)
+    alive_nodes = Enum.count(Keyword.values(answer), fn x -> x === :pong end)
+
+    if connected_nodes === 1 and alive_nodes !== 1 do
+        IO.puts("BACK ONLINE BABY")
+        Order.compare_order_states
+    end
+
+    ping_nodes(alive_nodes)
   end
 
   def ping_nodes(connected_nodes \\ 1) do 
@@ -29,19 +52,6 @@ defmodule Network do
   end
 
   @doc """
-  formats an ip address on tuple format to a bytestring
-  ## Examples
-      iex> Network.ip_to_string {10, 100, 23, 253}
-      '10.100.23.253'
-  """
-
-  def ip_to_string ip do
-    :inet.ntoa(ip) |> to_string()
-  end
-
-
-
-  @doc """
   Returns all nodes in the current cluster. Returns a list of nodes or an error message
   ## Examples
       iex> Network.all_nodes
@@ -49,7 +59,6 @@ defmodule Network do
       iex> Network.all_nodes
       {:error, :node_not_running}
   """
-
   def all_nodes do
     case [Node.self | Node.list] do
       [:'nonode@nohost'] -> {:error, :node_not_running}
@@ -62,11 +71,10 @@ defmodule Network do
   automatically imported
       iex> Network.boot_node "frank"
       {:ok, #PID<0.12.2>}
-      iex(frank@10.100.23.253)> _
+      iex(frank@10.100.23.253)> 
   """
-
   def boot_node(node_name, tick_time \\ 15000) do
-    ip = get_my_ip() |> ip_to_string()
+    ip = get_my_ip() |> :inet.ntoa()
     full_name = node_name <> "@" <> ip
     Node.start(String.to_atom(full_name), :longnames, tick_time)
     Node.set_cookie(:epicalyx)
