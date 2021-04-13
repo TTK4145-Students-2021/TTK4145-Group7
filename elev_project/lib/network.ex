@@ -28,12 +28,10 @@ defmodule Network do
     ip
   end
 
-
-
   @doc """
   formats an ip address on tuple format to a bytestring
   ## Examples
-      iex> NetworkStuff.ip_to_string {10, 100, 23, 253}
+      iex> Network.ip_to_string {10, 100, 23, 253}
       '10.100.23.253'
   """
 
@@ -46,9 +44,9 @@ defmodule Network do
   @doc """
   Returns all nodes in the current cluster. Returns a list of nodes or an error message
   ## Examples
-      iex> NetworkStuff.all_nodes
+      iex> Network.all_nodes
       [:'heis@10.100.23.253', :'heis@10.100.23.226']
-      iex> NetworkStuff.all_nodes
+      iex> Network.all_nodes
       {:error, :node_not_running}
   """
 
@@ -59,12 +57,10 @@ defmodule Network do
     end
   end
 
-
-
   @doc """
   boots a node with a specified tick time. node_name sets the node name before @. The IP-address is
   automatically imported
-      iex> NetworkStuff.boot_node "frank"
+      iex> Network.boot_node "frank"
       {:ok, #PID<0.12.2>}
       iex(frank@10.100.23.253)> _
   """
