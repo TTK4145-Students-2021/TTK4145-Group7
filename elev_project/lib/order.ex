@@ -132,7 +132,7 @@ defmodule Order do
   defp calculate_cost(order, order_map, elevator_state) do
     
     {elevator_number, ordered_floor, order_type} = order
-
+    #IO.inspect(elevator_state, label: "Elevator_state")
     %{
       direction: elevator_direction,
       floor: elevator_current_floor,
@@ -145,11 +145,19 @@ defmodule Order do
         elevator_current_order !== nil and ordered_floor === elevator_current_floor ->
           {elevator_current_order, if elevator_direction === :down do :up else :down end}
 
-        (elevator_direction === :down and ordered_floor > elevator_current_floor) or order_type === :hall_up ->
+        (elevator_direction === :down and ordered_floor > elevator_current_floor) ->
           {0, :up}
 
-        (elevator_direction === :up and ordered_floor < elevator_current_floor) or order_type === :hall_down ->
+        (elevator_direction === :up and ordered_floor < elevator_current_floor) ->
+          IO.puts "I was here :O"
           {@top_floor, :down}
+
+        order_type === :hall_up ->
+          {0,:up}
+        
+        order_type === :hall_down ->
+          {@top_floor, :down}
+          
 
         true ->
           {elevator_current_floor, elevator_direction}
@@ -176,14 +184,15 @@ defmodule Order do
         {_, floor, _} = x
         floor !== ordered_floor
       end)
-
-  checking_floor =
-    if elevator_direction == :down do
-      get_min_floor(orders_to_be_served, elevator_current_floor, ordered_floor)
-    else
-      get_max_floor(orders_to_be_served, elevator_current_floor, ordered_floor)
-    end
-
+    #IO.inspect(orders_to_be_served, label: "Orders_to_be_served")
+    checking_floor =
+      if elevator_direction == :down do
+        get_min_floor(orders_to_be_served, elevator_current_floor, ordered_floor)
+      else
+        get_max_floor(orders_to_be_served, elevator_current_floor, ordered_floor)
+      end
+    IO.inspect(checking_floor, label: "Checking floor")
+    #IO.inspect(desired_direction, label: "Desired direction")
     travel_distance = abs(elevator_current_floor - checking_floor) + abs(checking_floor - ordered_floor)
 
     # Does not count stop at ordered floor, but counts stop at current floor if the order is not cleared.

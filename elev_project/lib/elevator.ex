@@ -26,6 +26,8 @@ defmodule Elevator do
     GenStateMachine.call(@name, :get_elevator_state)
   end
 
+
+
   # Server (callbacks)
   @impl true
   def init(_) do
@@ -55,7 +57,19 @@ defmodule Elevator do
 
   @impl true
   def handle_event(:cast, {:serve_floor, floor}, :moving, data) do
-    {:keep_state, %{data | floor: floor}}
+
+    new_data =
+      cond do
+        floor > data.order ->
+          Driver.set_motor_direction(:down)
+          %{data | direction: :down}
+
+        floor < data.order ->
+          Driver.set_motor_direction(:up)
+          %{data | direction: :up}
+      end
+
+    {:keep_state, %{new_data | floor: floor}}
   end
 
   @impl true
