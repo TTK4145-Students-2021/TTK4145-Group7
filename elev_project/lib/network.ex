@@ -13,28 +13,14 @@ defmodule Network do
   Gets a list of all the elevator node names in the system.
   """
   def get_all_nodes do
-      Enum.map(1..@n_elevators, fn x -> String.to_atom(to_string(x) <> "@" <> :inet.ntoa(get_my_ip())) end)
+      Enum.map(1..@n_elevators, fn x -> String.to_atom(to_string(x) <> "@" <> to_string(:inet.ntoa(get_my_ip()))) end)
   end
 
   @doc """
   Pings all the other elevator nodes every seconds, keeps the nodes connected, when they can.'
   """
   def ping_nodes(connected_nodes \\ 1) do 
-    get_all_nodes |> Enum.each(Node.connect())
-    answer = Enum.reduce(get_all_nodes, [], fn node, acc -> acc++[{node, Node.ping(node)}]end)
-    Process.sleep(1_000)
-    alive_nodes = Enum.count(Keyword.values(answer), fn x -> x === :pong end)
-
-    if connected_nodes === 1 and alive_nodes !== 1 do
-        IO.puts("BACK ONLINE BABY")
-        Order.compare_order_states
-    end
-
-    ping_nodes(alive_nodes)
-  end
-
-  def ping_nodes(connected_nodes \\ 1) do 
-      answer = Enum.reduce(get_all_nodes, [], fn node, acc -> acc++[{node, Node.ping(node)}]end)
+      answer = Enum.reduce(get_all_nodes(), [], fn node, acc -> acc++[{node, Node.ping(node)}]end)
       Process.sleep(1_000)
       alive_nodes = Enum.count(Keyword.values(answer), fn x -> x === :pong end)
 
@@ -74,7 +60,7 @@ defmodule Network do
       iex(frank@10.100.23.253)> 
   """
   def boot_node(node_name, tick_time \\ 15000) do
-    ip = get_my_ip() |> :inet.ntoa()
+    ip = get_my_ip() |> :inet.ntoa() |> to_string()
     full_name = node_name <> "@" <> ip
     Node.start(String.to_atom(full_name), :longnames, tick_time)
     Node.set_cookie(:epicalyx)
