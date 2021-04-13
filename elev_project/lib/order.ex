@@ -190,7 +190,7 @@ defmodule Order do
       else
         get_max_floor(orders_to_be_served, elevator_current_floor, ordered_floor)
       end
-    IO.inspect(checking_floor, label: "Checking floor")
+    #IO.inspect(checking_floor, label: "Checking floor")
     #IO.inspect(desired_direction, label: "Desired direction")
     travel_distance = abs(elevator_current_floor - checking_floor) + abs(checking_floor - ordered_floor)
 
@@ -314,10 +314,10 @@ defmodule Order do
         end)
         |> Enum.min()
 
-      Process.send_after(@name, :check_for_orders, 750)
+      Process.send_after(@name, :check_for_orders, 100)
       Elevator.new_order(destination)
     else
-      Process.send_after(@name, :check_for_orders, 750)
+      Process.send_after(@name, :check_for_orders, 100)
     end
 
     {:noreply, {current_elevator, order_map}}
