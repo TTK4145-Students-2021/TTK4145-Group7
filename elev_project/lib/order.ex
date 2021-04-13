@@ -49,9 +49,9 @@ defmodule Order do
     IO.inspect(node_costs)
     n = Enum.count(acks)
     # How to handle single elevator mode?
-    n = 1
+    #n = 1
 
-    if n > 0 or order_type === :cab do
+    if n > 0 or order_type === :cab or @n_elevators === 1 do
       GenServer.call(@name, {:new_order, {winning_elevator, floor, order_type}})
     end
 
@@ -149,7 +149,6 @@ defmodule Order do
           {0, :up}
 
         (elevator_direction === :up and ordered_floor < elevator_current_floor) ->
-          IO.puts "I was here :O"
           {@top_floor, :down}
 
         order_type === :hall_up ->
