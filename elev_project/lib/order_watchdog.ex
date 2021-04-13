@@ -65,7 +65,7 @@ defmodule WatchDog do
   def handle_info({:timed_out, order}, state) do
     IO.puts "Order timed out"
     {_val, state} = Map.pop(state, order)
-    Task.start(Order, :send_watchdog_order, [order])
+    Task.start(Order, :send_order, [order, :watchdog])
     {:noreply, state}
   end
 end

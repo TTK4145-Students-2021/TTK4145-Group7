@@ -15,30 +15,35 @@ defmodule Order do
     {:ok, pid}
   end
 
-  def send_watchdog_order(order) do
-    {timed_out_elevator_number, floor, order_type} = order
+  def send_order(order, sender) do
+    {order_elevator_number, floor, order_type} = order
     elevator_number = get_elevator_number()
 
-    #What happens with cab calls?
-    GenServer.multi_call(@name, {:order_timed_out, order})
-  
     # timeout #Get all the costs back from all the elevators
     {node_costs, _bad_nodes_cost_calc} =
-      GenServer.multi_call(@name, {:calc_cost, {elevator_number, floor, order_type}})
-    
-    node_costs = Keyword.values(node_costs)
-    IO.inspect(node_costs)
-    
-    {winning_elevator, _cost} = node_costs 
-      |> Enum.map(fn x -> 
-         {elev_n, cost} = x;
-         cost = if elev_n === timed_out_elevator_number do @max_cost + 10 else cost end
-         {elev_n, cost}
-      end) 
-      |> Enum.min_by(fn x -> elem(x,1) end)
+    GenServer.multi_call(@name, {:calc_cost, {elevator_number, floor, order_type}})
 
-    {acks, _bad_nodes_ack} =
-      GenServer.multi_call(Node.list(), @name, {:new_order, {winning_elevator, floor, order_type}})
+    node_costs =
+    IO.inspect(node_costs)
+
+    {winning_elevator, _cost}  = 
+    if sender === :watchdog do
+      GenServer.multi_call(@name, {:order_timed_out, order})
+
+      node_costs
+      |> Keyword.values()
+      |> Enum.map(fn x -> {elev_n, cost} = x;
+         cost = if elev_n === order_elevator_number do @max_cost + 10 else cost end
+         {elev_n, cost} end)
+      |> Enum.min_by(fn x -> elem(x,1) end)
+    else
+      node_costs
+      |> Keyword.values()
+      |> Enum.min_by(fn x -> elem(x,1) end)
+    end
+
+    {acks, _bad_nodes} =
+    GenServer.multi_call(Node.list(), @name, {:new_order, {winning_elevator, floor, order_type}})
 
     IO.puts("Cost:")
     IO.inspect(node_costs)
@@ -50,38 +55,6 @@ defmodule Order do
       GenServer.call(@name, {:new_order, {winning_elevator, floor, order_type}})
     end
 
-    node_costs
-  end
-
-
-  def send_IO_order(order) do
-    %{floor: floor, type: order_type} = order
-    elevator_number = get_elevator_number()
-
-    # timeout #Get all the costs back from all the elevators
-    {node_costs, _bad_nodes_cost_calc} =
-      GenServer.multi_call(@name, {:calc_cost, {elevator_number, floor, order_type}})
-
-    # Do we need anything else here?
-    # timeout #Sends the result of the auction to every elevator
-    {winning_elevator, _cost} = node_costs
-      |>  Keyword.values()
-      |>  Enum.min_by(fn x -> elem(x,1) end)
-    
-    {acks, _bad_nodes_ack} =
-      GenServer.multi_call(Node.list(), @name, {:new_order, {winning_elevator, floor, order_type}})
-
-    #IO.puts("Cost:")
-    #IO.inspect(node_costs)
-    n = Enum.count(acks)
-    # How to handle single elevator mode?
-    n = 1
-
-    if n > 0 or order_type === :cab do
-      GenServer.call(@name, {:new_order, {winning_elevator, floor, order_type}})
-    end
-
-    #Is this just for info?
     node_costs
   end
 
