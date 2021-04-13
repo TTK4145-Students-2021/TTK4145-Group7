@@ -2,7 +2,7 @@ defmodule Network do
   @moduledoc """
   Network module used to connect and keep the connection to the other elevators.
   """
-  @n_elevators 2
+  @n_elevators 3
   use Task
   
   def start_link(_args) do

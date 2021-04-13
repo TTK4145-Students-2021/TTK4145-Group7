@@ -25,8 +25,8 @@ defmodule WatchDog do
   end
 
   def complete_order(order) do
-    %{elevator_number: elevator_number, floor: floor} = order
-    Enum.each([:hall_up,:hall_down], fn x -> complete_order_helper(%{elevator_number: elevator_number, floor: floor, type: x}) end)
+    {elevator_number, floor, _order_type} = order
+    Enum.each([:hall_up,:hall_down], fn order_type -> complete_order_helper({elevator_number, floor, order_type}) end)
   end
 
   defp complete_order_helper(order) do
@@ -36,9 +36,10 @@ defmodule WatchDog do
   @impl true
   def handle_call({:new_order, order}, _from, state) do
     state = if !Map.has_key?(state, order) do
-      timer = Process.send_after(self(), {:timed_out, order}, @order_timeout)
-      state = Map.put(state, order, timer)
-      else state
+        timer = Process.send_after(self(), {:timed_out, order}, @order_timeout)
+        Map.put(state, order, timer)
+      else 
+        state
     end
     {:reply, :ok, state}
   end
@@ -52,7 +53,7 @@ defmodule WatchDog do
   @impl true
   def handle_cast({:stop_timer, order}, state) do
     {timer, state} = Map.pop(state, order, :non_existing)
-    time_left = if timer !== :non_existing do
+    if timer !== :non_existing do
       Process.cancel_timer(timer)
     end
     {:noreply, state}
@@ -64,7 +65,7 @@ defmodule WatchDog do
   def handle_info({:timed_out, order}, state) do
     IO.puts "Order timed out"
     {_val, state} = Map.pop(state, order)
-    Task.start(Order, :send_watchdog_order, [order])
+    Task.start(Order, :send_order, [order, :watchdog])
     {:noreply, state}
   end
 end
