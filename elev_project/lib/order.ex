@@ -14,8 +14,10 @@ defmodule Order do
     Process.send_after(@name, :check_for_orders, 500)
     {:ok, pid}
   end
-
-  def send_order(order, sender) do
+  @doc """
+  Sends an 
+  """
+  def send_order(order, from) do
     {order_elevator_number, floor, order_type} = order
     elevator_number = get_elevator_number()
 
@@ -27,7 +29,7 @@ defmodule Order do
     IO.inspect(node_costs)
 
     {winning_elevator, _cost}  = 
-    if sender === :watchdog do
+    if from === :order_watchdog do
       GenServer.multi_call(@name, {:order_timed_out, order})
 
       node_costs
@@ -51,10 +53,14 @@ defmodule Order do
     # How to handle single elevator mode?
     #n = 1
 
-    if n > 0 or order_type === :cab or @n_elevators === 1 do
+    if n > 0 or order_type === :cab or @n_elevators === 1 or from === :order_watchdog do
       GenServer.call(@name, {:new_order, {winning_elevator, floor, order_type}})
-    end
 
+      if from === :order_watchdog do
+        GenServer.multi_call(@name, {:order_timed_out, order})
+      end
+
+    end
     node_costs
   end
 
@@ -83,7 +89,119 @@ defmodule Order do
     GenServer.call(@name, :get_elevator_number)
   end
 
-  #Returns a list of active orders, matching the arguments given, on the form [{elevator_number,floor,order_type}, ...]
+
+  @impl true
+  def init(elevator_number) do
+    order_map = create_order_map(@n_elevators, @top_floor)
+    state = {elevator_number, order_map}
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_call({:new_order, order}, _from, {elevator_number, order_map}) do
+    {_elev_num, _floor, order_type} = order
+    order_map = Map.put(order_map, order, true)
+
+    #What happens with orders of type cab?
+    if order_type !== :cab and @n_elevators > 1 do
+      Task.start(WatchDog, :new_order, [order])
+    end
+    
+    {:reply, :ok, {elevator_number, order_map}}
+  end
+
+  @impl true
+  def handle_call(:get_elevator_number, _from, {elevator_number, order_map}) do
+    {:reply, elevator_number, {elevator_number, order_map}}
+  end
+
+  @impl true
+  def handle_call({:calc_cost, {elevator_that_sent_order, ordered_floor, :cab}}, _from, {elevator_number, order_map}) do
+    cost =
+      if(elevator_number === elevator_that_sent_order) do
+        calculate_cost({elevator_number, ordered_floor, :cab}, order_map, Elevator.get_elevator_state())
+      else
+        @max_cost + 10
+      end
+
+    {:reply, {elevator_number, cost}, {elevator_number, order_map}}
+  end
+
+  @impl true
+  def handle_call({:calc_cost, order}, _from, {elevator_number, order_map}) do
+    {_elevator_that_sendt_order, ordered_floor, order_type} = order
+
+    cost = calculate_cost({elevator_number,ordered_floor,order_type}, order_map, Elevator.get_elevator_state())
+
+    {:reply, {elevator_number, cost}, {elevator_number, order_map}}
+  end
+
+  @impl true
+  def handle_call(:get_order_state, _from, state) do
+    {:reply, state, state}
+  end
+
+  @impl true
+  def handle_call({:order_completed, order}, _from, {current_elevator, order_map}) do
+    {elevator_number, floor, _order_type} = order
+    order_map = order_map
+      |> Map.put({elevator_number, floor, :hall_down}, false)
+      |> Map.put({elevator_number, floor, :cab}, false)
+      |> Map.put({elevator_number, floor, :hall_up}, false)
+    Task.start(WatchDog, :complete_order, [order])
+    {:reply, :ok, {current_elevator, order_map}}
+  end
+
+  @impl true
+  def handle_call({:order_timed_out, order}, _from, {current_elevator, order_map}) do
+    order_map = Map.put(order_map, order, false)
+
+    {:reply, :ok, {current_elevator, order_map}}
+  end
+
+  @impl true
+  def handle_info(:check_for_orders, {current_elevator, order_map}) do
+    elevator_state = Elevator.get_elevator_state()
+    %{
+      direction: elevator_direction,
+      floor: elevator_current_floor,
+      order: _elevator_current_order,
+      obstruction: _obstruction,
+    } = elevator_state
+
+    active_orders = get_active_orders(order_map, current_elevator, elevator_direction, :no_filter)
+
+    if Enum.count(active_orders) > 0 and elevator_current_floor !== nil do
+      cost = []
+
+      {_min_cost, destination} =
+        Enum.reduce(active_orders, cost, fn order, cost ->
+          cost ++
+            [
+              {calculate_cost(
+                  order,
+                  order_map,
+                  elevator_state
+                ), elem(order,1)}
+            ]
+        end)
+        |> Enum.min()
+
+      Process.send_after(@name, :check_for_orders, 100)
+      Elevator.new_order(destination)
+    else
+      Process.send_after(@name, :check_for_orders, 100)
+    end
+
+    {:noreply, {current_elevator, order_map}}
+  end
+
+  @impl true
+  def handle_cast({:update_order_map, new_order_map}, {elevator_number, _order_map}) do
+    {:noreply, {elevator_number, new_order_map}}
+  end
+
+    #Returns a list of active orders, matching the arguments given, on the form [{elevator_number,floor,order_type}, ...]
   defp get_active_orders(order_map, elevator_number, direction, filter, floor_range \\ 0..@top_floor) do
     filter_out_order_type =
       case filter do
@@ -216,115 +334,6 @@ defmodule Order do
     end
   end
 
-  @impl true
-  def init(elevator_number) do
-    order_map = create_order_map(@n_elevators, @top_floor)
-    state = {elevator_number, order_map}
-    {:ok, state}
-  end
 
-  @impl true
-  def handle_call({:new_order, order}, _from, {elevator_number, order_map}) do
-    {_elev_num, _floor, order_type} = order
-    order_map = Map.put(order_map, order, true)
 
-    #What happens with orders of type cab?
-    if order_type !== :cab do
-      Task.start(WatchDog, :new_order, [order])
-    end
-    
-    {:reply, :ok, {elevator_number, order_map}}
-  end
-
-  @impl true
-  def handle_call(:get_elevator_number, _from, {elevator_number, order_map}) do
-    {:reply, elevator_number, {elevator_number, order_map}}
-  end
-
-  @impl true
-  def handle_call({:calc_cost, {elevator_that_sent_order, ordered_floor, :cab}}, _from, {elevator_number, order_map}) do
-    cost =
-      if(elevator_number === elevator_that_sent_order) do
-        calculate_cost({elevator_number, ordered_floor, :cab}, order_map, Elevator.get_elevator_state())
-      else
-        @max_cost + 10
-      end
-
-    {:reply, {elevator_number, cost}, {elevator_number, order_map}}
-  end
-
-  @impl true
-  def handle_call({:calc_cost, order}, _from, {elevator_number, order_map}) do
-    {_elevator_that_sendt_order, ordered_floor, order_type} = order
-
-    cost = calculate_cost({elevator_number,ordered_floor,order_type}, order_map, Elevator.get_elevator_state())
-
-    {:reply, {elevator_number, cost}, {elevator_number, order_map}}
-  end
-
-  @impl true
-  def handle_call(:get_order_state, _from, state) do
-    {:reply, state, state}
-  end
-
-  @impl true
-  def handle_call({:order_completed, order}, _from, {current_elevator, order_map}) do
-    {elevator_number, floor, _order_type} = order
-    order_map = order_map
-      |> Map.put({elevator_number, floor, :hall_down}, false)
-      |> Map.put({elevator_number, floor, :cab}, false)
-      |> Map.put({elevator_number, floor, :hall_up}, false)
-
-    Task.start(WatchDog, :complete_order, [order])
-    {:reply, :ok, {current_elevator, order_map}}
-  end
-
-  @impl true
-  def handle_call({:order_timed_out, order}, _from, {current_elevator, order_map}) do
-    order_map = Map.put(order_map, order, false)
-
-    {:reply, :ok, {current_elevator, order_map}}
-  end
-
-  @impl true
-  def handle_info(:check_for_orders, {current_elevator, order_map}) do
-    elevator_state = Elevator.get_elevator_state()
-    %{
-      direction: elevator_direction,
-      floor: elevator_current_floor,
-      order: _elevator_current_order,
-      obstruction: _obstruction,
-    } = elevator_state
-
-    active_orders = get_active_orders(order_map, current_elevator, elevator_direction, :no_filter)
-
-    if Enum.count(active_orders) > 0 and elevator_current_floor !== nil do
-      cost = []
-
-      {_min_cost, destination} =
-        Enum.reduce(active_orders, cost, fn order, cost ->
-          cost ++
-            [
-              {calculate_cost(
-                  order,
-                  order_map,
-                  elevator_state
-                ), elem(order,1)}
-            ]
-        end)
-        |> Enum.min()
-
-      Process.send_after(@name, :check_for_orders, 100)
-      Elevator.new_order(destination)
-    else
-      Process.send_after(@name, :check_for_orders, 100)
-    end
-
-    {:noreply, {current_elevator, order_map}}
-  end
-
-  @impl true
-  def handle_cast({:update_order_map, new_order_map}, {elevator_number, _order_map}) do
-    {:noreply, {elevator_number, new_order_map}}
-  end
 end
