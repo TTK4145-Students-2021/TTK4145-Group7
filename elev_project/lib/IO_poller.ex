@@ -1,5 +1,6 @@
 defmodule ButtonPoller do
   use Task
+  @polling_time 100
 
   def start_link(floor, button_type) do
     Task.start_link(__MODULE__, :button_poller, [floor, button_type, :released])
@@ -15,29 +16,30 @@ defmodule ButtonPoller do
   end
 
   def button_poller(floor, button_type, button_state) do
-    Process.sleep(200)
+    Process.sleep(@polling_time)
     state = Driver.get_order_button_state(floor, button_type)
 
-    case state do
-      0 ->
-        button_poller(floor, button_type, :released)
+    new_button_state = 
+    cond do
+      state === 0 ->
+        :released
 
-      1 ->
-        if button_state == :released do
-          IO.puts("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
-          Order.send_order({0, floor, button_type}, :IO)
-        end
-
-        button_poller(floor, button_type, :pressed)
-
-      {:error, :timeout} ->
-        button_poller(floor, button_type, :released)
+      state === 1 and button_state == :released ->
+        IO.puts("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
+        Order.send_order({:dummy, floor, button_type}, :IO)
+        :pressed
+      
+      state === 1 ->
+        :pressed
     end
+
+    button_poller(floor, button_type, new_button_state)
   end
 end
 
 defmodule SensorPoller do
   use Task
+  @polling_time 100
 
   def start_link(sensor_type) do
     case sensor_type do
@@ -62,26 +64,28 @@ defmodule SensorPoller do
   end
 
   def sensor_poller(:floor_sensor, :between_floors) do
+    Process.sleep(@polling_time)
     sensor_poller(:floor_sensor, Driver.get_floor_sensor_state())
   end
 
-  def sensor_poller(:floor_sensor, :idle) do
+  def sensor_poller(:floor_sensor, :poller_idle) do
+    Process.sleep(@polling_time)
     case Driver.get_floor_sensor_state() do
       :between_floors -> sensor_poller(:floor_sensor, :between_floors)
-      _other -> sensor_poller(:floor_sensor, :idle)
+      _other -> sensor_poller(:floor_sensor, :poller_idle)
     end
   end
 
   def sensor_poller(:floor_sensor, floor) do
     IO.puts("Lift at " <> to_string(floor))
-
     Elevator.serve_floor(floor)
-
     Driver.set_floor_indicator(floor)
-    sensor_poller(:floor_sensor, :idle)
+
+    sensor_poller(:floor_sensor, :poller_idle)
   end
 
   def sensor_poller(:obstruction_sensor, :inactive) do
+    Process.sleep(@polling_time)
     case Driver.get_obstruction_switch_state() do
       :inactive ->
         sensor_poller(:obstruction_sensor, :inactive)
@@ -94,6 +98,7 @@ defmodule SensorPoller do
   end
 
   def sensor_poller(:obstruction_sensor, :active) do
+    Process.sleep(@polling_time)
     case Driver.get_obstruction_switch_state() do
       :inactive ->
         IO.puts("Obstruction released!")
