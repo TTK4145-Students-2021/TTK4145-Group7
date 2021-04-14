@@ -28,7 +28,7 @@ ElevProject.Supervisor.start_link("port", "elevator_number")
 
 ## Errors
 
-- [ ] Lights flicker when watchdog times out, especially during packet loss.
+- [x] Lights flicker when watchdog times out, especially during packet loss.
 
 ## Installation as finished module
 

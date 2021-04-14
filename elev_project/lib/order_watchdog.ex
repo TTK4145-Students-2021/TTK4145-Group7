@@ -1,6 +1,6 @@
 defmodule WatchDog do
   @name :order_watchdog
-  @order_timeout 10_000
+  @order_timeout Application.fetch_env!(:elevator_project, :order_timeout)
 
   use GenServer
 
@@ -65,5 +65,4 @@ defmodule WatchDog do
     Task.start(Order, :send_order, [order, @name])
     {:noreply, state}
   end
-
 end

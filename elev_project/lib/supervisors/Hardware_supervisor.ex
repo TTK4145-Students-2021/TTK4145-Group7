@@ -1,7 +1,7 @@
 defmodule HardwareSupervisor do
   use Supervisor
-  @floors 3
 
+  @floors Application.fetch_env!(:elevator_project, :top_floor)
   def start_link([port]) do
     Supervisor.start_link(__MODULE__, {:ok, @floors, port}, name: __MODULE__)
   end
@@ -14,7 +14,7 @@ defmodule HardwareSupervisor do
       {SensorPoller.Supervisor, []}
     ]
 
-    opts = [strategy: :rest_for_one]
+    opts = [strategy: :one_for_one]
     Supervisor.init(children, opts)
   end
 end

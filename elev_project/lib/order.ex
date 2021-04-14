@@ -3,9 +3,11 @@ defmodule Order do
 
   @name :order_server
 
+  
   @top_floor Application.fetch_env!(:elevator_project, :top_floor)    
   @stop_cost Application.fetch_env!(:elevator_project, :stop_cost)
   @travel_cost Application.fetch_env!(:elevator_project, :travel_cost)
+  @multi_call_timeout 1_000
   @max_cost (2*@top_floor * (@stop_cost+@travel_cost))
 
   use GenServer
@@ -24,7 +26,7 @@ defmodule Order do
 
     # timeout #Get all the costs back from all the elevators
     {node_costs, _bad_nodes_cost_calc} =
-    GenServer.multi_call(@name, {:calc_cost, {elevator_number, floor, order_type}})
+    GenServer.multi_call([node() | Node.list()],@name, {:calc_cost, {elevator_number, floor, order_type}}, @multi_call_timeout)
 
     node_costs =
     IO.inspect(node_costs)
@@ -44,7 +46,7 @@ defmodule Order do
     end
 
     {acks, _bad_nodes} =
-    GenServer.multi_call(Node.list(), @name, {:new_order, {winning_elevator, floor, order_type}})
+    GenServer.multi_call(Node.list(), @name, {:new_order, {winning_elevator, floor, order_type}}, @multi_call_timeout)
 
     IO.puts("Cost:")
     IO.inspect(node_costs)
@@ -56,7 +58,7 @@ defmodule Order do
       GenServer.call(@name, {:new_order, {winning_elevator, floor, order_type}})
 
       if from === :order_watchdog do
-        GenServer.multi_call(@name, {:order_timed_out, order})
+        GenServer.multi_call([node() | Node.list()],@name, {:order_timed_out, order}, @multi_call_timeout)
       end
 
     end
@@ -64,7 +66,8 @@ defmodule Order do
   end
 
   def order_completed(floor) do
-    GenServer.multi_call(@name, {:order_completed, {get_elevator_number(), floor, :dummy}})
+    elev_num = get_elevator_number()
+    GenServer.multi_call([node() | Node.list()],@name, {:order_completed, {elev_num, floor, :dummy}},@multi_call_timeout)
   end
 
   def compare_order_states() do  
@@ -85,7 +88,7 @@ defmodule Order do
 
 
   def get_elevator_number() do
-    GenServer.call(@name, :get_elevator_number)
+    Application.fetch_env!(:elevator_project, :elevator_number)
   end
 
 

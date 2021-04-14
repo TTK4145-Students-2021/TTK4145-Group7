@@ -7,6 +7,7 @@ config :elevator_project,
     top_floor: 3,   #Floors are 0-indexed
 
     #Elevator settings
+    elevator_number: 1,
     door_timer_interval: 2_000,
 
     #Order settings
