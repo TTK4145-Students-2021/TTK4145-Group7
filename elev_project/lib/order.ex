@@ -32,24 +32,24 @@ defmodule Order do
     elevator_number = get_elevator_number()
 
     {node_costs, bad_nodes_cost_calc} =
-    GenServer.multi_call([node() | Node.list()],@name, {:calc_cost, {elevator_number, floor, order_type}}, @multi_call_timeout)
+      GenServer.multi_call([node() | Node.list()],@name, {:calc_cost, {elevator_number, floor, order_type}}, @multi_call_timeout)
 
     {winning_elevator, cost}  = 
-    if from === :order_watchdog do
-      node_costs
-      |> Keyword.values()
-      |> Enum.map(fn x -> {elev_n, cost} = x;
-         cost = if elev_n === order_elevator_number do @max_cost + 10 else cost end
-         {elev_n, cost} end)
-      |> Enum.min_by(fn x -> elem(x,1) end)
-    else
-      node_costs
-      |> Keyword.values()
-      |> Enum.min_by(fn x -> elem(x,1) end)
-    end
+      if from === :order_watchdog do
+        node_costs
+        |> Keyword.values()
+        |> Enum.map(fn x -> {elev_n, cost} = x;
+          cost = if elev_n === order_elevator_number do @max_cost + 10 else cost end
+          {elev_n, cost} end)
+        |> Enum.min_by(fn x -> elem(x,1) end)
+      else
+        node_costs
+        |> Keyword.values()
+        |> Enum.min_by(fn x -> elem(x,1) end)
+      end
 
     {acks, bad_nodes_new_order} =
-    GenServer.multi_call(Node.list(), @name, {:new_order, {winning_elevator, floor, order_type}}, @multi_call_timeout)
+      GenServer.multi_call(Node.list(), @name, {:new_order, {winning_elevator, floor, order_type}}, @multi_call_timeout)
 
     n = Enum.count(acks)
     
