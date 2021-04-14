@@ -40,33 +40,18 @@ defmodule ButtonPoller do
       obstruction: _obstruction,
     } = Elevator.get_elevator_state()
     new_button_state = 
-<<<<<<< HEAD
-    cond do
-      state === 0 ->
-        :released
-
-      state === 1 and button_state == :released ->
-        Logger.info("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
-        Order.send_order({:dummy, floor, button_type}, @name)
-        :pressed
-      
-      state === 1 ->
-        :pressed
-    end
-=======
       cond do
         state === 0 ->
           :released
 
         state === 1 and button_state == :released ->
-          IO.puts("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
+          Logger.info("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
           if elevator_current_floor !== nil do Order.send_order({:elevator_number, floor, button_type}, @name) end
           :pressed
         
         state === 1 ->
           :pressed
       end
->>>>>>> 22ebf795bb0d13c94cd4a8686253bd426c872cb9
 
     button_poller(floor, button_type, new_button_state)
   end
@@ -77,15 +62,9 @@ defmodule SensorPoller do
   Module used to poll the sensors of the Driver hardware.
   """
   use Task
-<<<<<<< HEAD
   require Logger
 
-  @polling_time 100
-=======
   @polling_time Application.fetch_env!(:elevator_project, :polling_interval)
-
-
->>>>>>> 22ebf795bb0d13c94cd4a8686253bd426c872cb9
 
   def start_link(sensor_type) do
     case sensor_type do
