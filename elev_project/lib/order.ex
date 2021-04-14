@@ -12,6 +12,7 @@ defmodule Order do
   @max_cost (2*@top_floor * (@stop_cost+@travel_cost))
 
   use GenServer
+  require Logger
 
   def start_link([args]) do
     {:ok, pid} = GenServer.start_link(__MODULE__, args, name: @name)
@@ -51,8 +52,7 @@ defmodule Order do
     IO.puts("Cost:")
     IO.inspect(node_costs)
     n = Enum.count(acks)
-    # How to handle single elevator mode?
-    #n = 1
+    
     n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
     if n > 0 or order_type === :cab or n_elevators === 1 or from === :order_watchdog do
       GenServer.call(@name, {:new_order, {winning_elevator, floor, order_type}})
@@ -119,7 +119,6 @@ defmodule Order do
     {_elev_num, _floor, order_type} = order
     order_map = Map.put(order_map, order, true)
 
-    #What happens with orders of type cab?
     n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
     if order_type !== :cab and n_elevators > 1 do
       Task.start(WatchDog, :new_order, [order])
@@ -166,11 +165,14 @@ defmodule Order do
   @impl true
   def handle_call({:order_completed, order}, _from, {current_elevator, order_map}) do
     {elevator_number, floor, _order_type} = order
+
     order_map = order_map
       |> Map.put({elevator_number, floor, :hall_down}, false)
       |> Map.put({elevator_number, floor, :cab}, false)
       |> Map.put({elevator_number, floor, :hall_up}, false)
+
     Task.start(WatchDog, :complete_order, [order])
+
     {:reply, :ok, {current_elevator, order_map}}
   end
 
@@ -200,8 +202,9 @@ defmodule Order do
     if Enum.count(active_orders) > 0 and elevator_current_floor !== nil do
       cost = []
 
-      {_min_cost, destination} =
-        Enum.reduce(active_orders, cost, fn order, cost ->
+      {_min_cost,destination} =
+        active_orders
+        |> Enum.reduce( cost, fn order, cost ->
           cost ++
             [
               {calculate_cost(
@@ -210,8 +213,8 @@ defmodule Order do
                   elevator_state
                 ), elem(order,1)}
             ]
-        end)
-        |> Enum.min()
+          end)
+        |>Enum.min()
 
       Process.send_after(@name, :check_for_orders, 100)
       Elevator.new_order(destination)
@@ -275,10 +278,9 @@ defmodule Order do
     |> Enum.min()
   end
 
-  defp calculate_cost(order, order_map, elevator_state) do
-    
+  defp calculate_cost(order, order_map, elevator_state) do 
     {elevator_number, ordered_floor, order_type} = order
-    #IO.inspect(elevator_state, label: "Elevator_state")
+    
     %{
       direction: elevator_direction,
       floor: elevator_current_floor,
@@ -303,7 +305,6 @@ defmodule Order do
         order_type === :hall_down ->
           {@top_floor, :down}
           
-
         true ->
           {elevator_current_floor, elevator_direction}
       end
@@ -321,26 +322,32 @@ defmodule Order do
           elevator_number,
           desired_direction,
           :filter_active,
-          checking_floor..ordered_floor
-        )
-      )
-      |> Enum.dedup()
+          checking_floor..ordered_floor))
+      |> Enum.uniq()
       |> Enum.filter(fn x ->
         {_, floor, _} = x
-        floor !== ordered_floor
-      end)
-    #IO.inspect(orders_to_be_served, label: "Orders_to_be_served")
+        floor !== ordered_floor and floor !== elevator_current_floor
+        end)
+      
     checking_floor =
       if elevator_direction == :down do
         get_min_floor(orders_to_be_served, elevator_current_floor, ordered_floor)
       else
         get_max_floor(orders_to_be_served, elevator_current_floor, ordered_floor)
       end
-      
+    
     travel_distance = abs(elevator_current_floor - checking_floor) + abs(checking_floor - ordered_floor)
 
-    # Does not count stop at ordered floor, but counts stop at current floor if the order is not cleared.
+    # Does not count stop at ordered floor
     n_stops = Enum.count(orders_to_be_served)
+
+    Logger.debug(%{order: order, 
+      elevator_state: elevator_state,
+      orders_to_be_served: orders_to_be_served, 
+      checking_floor: checking_floor,
+      desired_direction: desired_direction,
+      travel_distance: travel_distance,
+      n_stops: n_stops})
 
     @travel_cost * travel_distance + @stop_cost * n_stops
   

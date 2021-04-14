@@ -19,3 +19,6 @@ config :elevator_project,
     #IO
     polling_interval: 100,
     lights_update_interval: 100
+
+config :logger,
+    level: :debug

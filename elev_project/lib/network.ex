@@ -10,35 +10,25 @@ defmodule Network do
   end
 
   @doc """
-  Gets a list of all the elevator node names in the system.
-  """
-  def get_all_nodes() do
-    n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
-    Enum.map(1..n_elevators, fn x -> String.to_atom(to_string(x) <> "@" <> to_string(:inet.ntoa(get_my_ip()))) end)
-  end
-
-  @doc """
   Pings all the other elevator nodes every seconds, keeps the nodes connected, when they can.
   """
   def ping_nodes(connected_nodes \\ 1) do 
-      answer = Enum.reduce(get_all_nodes(), [], fn node, acc -> acc++[{node, Node.ping(node)}]end)
-      Process.sleep(1_000)
-      alive_nodes = Enum.count(Keyword.values(answer), fn x -> x === :pong end)
+    Process.sleep(1_000)
+    alive_nodes = 
+      get_all_nodes()
+      |> Enum.reduce([], fn node, acc -> acc++[{node, Node.ping(node)}]end)
+      |> Keyword.values()
+      |> Enum.count(fn x -> x === :pong end)
 
-      if connected_nodes === 1 and alive_nodes !== 1 do
-          IO.puts("BACK ONLINE BABY")
-          Order.compare_order_states
-      end
+    if connected_nodes === 1 and alive_nodes > 1 do
+        IO.puts("BACK ONLINE BABY")
+        Order.compare_order_states
+    end
 
-      ping_nodes(alive_nodes)
+    ping_nodes(alive_nodes)
   end
 
-  def get_my_ip do
-    {:ok, [{ip, _, _}, _]} = :inet.getif
-    ip
-  end
-
-  @doc """
+    @doc """
   Returns all nodes in the current cluster. Returns a list of nodes or an error message
   ## Examples
       iex> Network.all_nodes
@@ -65,5 +55,18 @@ defmodule Network do
     full_name = node_name <> "@" <> ip
     Node.start(String.to_atom(full_name), :longnames, tick_time)
     Node.set_cookie(:epicalyx)
+  end
+
+  defp get_my_ip do
+    {:ok, [{ip, _, _}, _]} = :inet.getif
+    ip
+  end
+
+  @doc """
+  Gets a list of all the elevator node names in the system.
+  """
+  def get_all_nodes() do
+    n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
+    Enum.map(1..n_elevators, fn x -> String.to_atom(to_string(x) <> "@" <> to_string(:inet.ntoa(get_my_ip()))) end)
   end
 end
