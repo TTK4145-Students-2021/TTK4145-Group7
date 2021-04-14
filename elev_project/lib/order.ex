@@ -2,17 +2,14 @@ defmodule Order do
   # An order always has a key in the form {elevator_number, floor, order_type}
 
   @name :order_server
-  #@n_elevators Application.fetch_env!(:elevator_project, :number_of_elevators)  # Elevators are 1-indexed
-  @top_floor Application.fetch_env!(:elevator_project, :top_floor)    # Floors are 0-indexed
+
+  @top_floor Application.fetch_env!(:elevator_project, :top_floor)    
   @stop_cost Application.fetch_env!(:elevator_project, :stop_cost)
   @travel_cost Application.fetch_env!(:elevator_project, :travel_cost)
   @max_cost (2*@top_floor * (@stop_cost+@travel_cost))
 
   use GenServer
 
-  # def print_n_el() do
-  #   IO.puts(@n_elevators)
-  # end
   def start_link([args]) do
     {:ok, pid} = GenServer.start_link(__MODULE__, args, name: @name)
     Process.send_after(@name, :check_for_orders, 500)
