@@ -1,4 +1,8 @@
 defmodule ButtonPoller do
+
+  @moduledoc """
+  Module used for creating a process to monitor a single button.
+  """
   @name :button_poller
   use Task
   @polling_time Application.fetch_env!(:elevator_project, :polling_interval)
@@ -7,6 +11,9 @@ defmodule ButtonPoller do
     Task.start_link(__MODULE__, :button_poller, [floor, button_type, :released])
   end
 
+  @doc """
+  Retrieve the child_spec for ButtonPoller
+  """
   def child_spec(floor, button_type) do
     %{
       id: to_string(floor) <> "-" <> to_string(button_type),
@@ -16,6 +23,9 @@ defmodule ButtonPoller do
     }
   end
 
+  @doc """
+  Main loop that a ButtonPoller runs through.
+  """
   def button_poller(floor, button_type, button_state) do
     Process.sleep(@polling_time)
     state = Driver.get_order_button_state(floor, button_type)
@@ -39,8 +49,13 @@ defmodule ButtonPoller do
 end
 
 defmodule SensorPoller do
+  @moduledoc """
+  Module used to poll the sensors of the Driver hardware.
+  """
   use Task
-  @polling_time 100
+  @polling_time Application.fetch_env!(:elevator_project, :polling_interval)
+
+
 
   def start_link(sensor_type) do
     case sensor_type do
@@ -64,6 +79,9 @@ defmodule SensorPoller do
     }
   end
 
+  @doc """
+  Starts a sensor poller in the default state
+  """
   def sensor_poller(:floor_sensor, :between_floors) do
     Process.sleep(@polling_time)
     sensor_poller(:floor_sensor, Driver.get_floor_sensor_state())
@@ -85,6 +103,9 @@ defmodule SensorPoller do
     sensor_poller(:floor_sensor, :poller_idle)
   end
 
+  @doc """
+  Starts the obstruction sensor in the default state.
+  """
   def sensor_poller(:obstruction_sensor, :inactive) do
     Process.sleep(@polling_time)
     case Driver.get_obstruction_switch_state() do

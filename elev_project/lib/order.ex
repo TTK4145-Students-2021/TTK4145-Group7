@@ -7,14 +7,15 @@ defmodule Order do
   @top_floor Application.fetch_env!(:elevator_project, :top_floor)    
   @stop_cost Application.fetch_env!(:elevator_project, :stop_cost)
   @travel_cost Application.fetch_env!(:elevator_project, :travel_cost)
-  @multi_call_timeout 1_000
+  @multi_call_timeout Application.fetch_env!(:elevator_project, :multi_call_timeout)
+  @initialization_time Application.fetch_env!(:elevator_project, :initialization_time)
   @max_cost (2*@top_floor * (@stop_cost+@travel_cost))
 
   use GenServer
 
   def start_link([args]) do
     {:ok, pid} = GenServer.start_link(__MODULE__, args, name: @name)
-    Process.send_after(@name, :check_for_orders, 500)
+    Process.send_after(@name, :check_for_orders, @initialization_time)
     {:ok, pid}
   end
   @doc """
@@ -337,7 +338,4 @@ defmodule Order do
       order_map
     end
   end
-
-
-
 end

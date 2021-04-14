@@ -39,21 +39,7 @@ defmodule Network do
   end
 
   @doc """
-  Returns all nodes in the current cluster. Returns a list of nodes or an error message
-  ## Examples
-      iex> Network.all_nodes
-      [:'heis@10.100.23.253', :'heis@10.100.23.226']
-      iex> Network.all_nodes
-      {:error, :node_not_running}
-  """
-  def all_nodes do
-    case [Node.self | Node.list] do
-      [:'nonode@nohost'] -> {:error, :node_not_running}
-      nodes -> nodes
-    end
-  end
-
-  @doc """
+  Template from Jostein Løwer
   boots a node with a specified tick time. node_name sets the node name before @. The IP-address is
   automatically imported
       iex> Network.boot_node "frank"

@@ -1,12 +1,21 @@
 defmodule Lights do
+  
+  @moduledoc """
+  Retrieves the order map from the order module, 
+  and sets the lights accordingly by interfacing with driver
+  """
+  
   use Task
-
+  
   @lights_update_interval Application.fetch_env!(:elevator_project, :lights_update_interval)
 
   def start_link(_args) do
     Task.start_link(__MODULE__, :run, [])
   end
 
+  @doc """
+  The main run function that recursively runs to update the lights
+  """
   def run() do
     {driving_elevator, order_map} = Order.get_order_state()
     order_map 
@@ -20,6 +29,9 @@ defmodule Lights do
     run()
   end
 
+  @doc """
+  For every floor and type sets the light of a list of {elev, is_ordered} elements.
+  """
   def update_lights({{floor, type}, is_ordered_list}, driving_elevator) do
     case type do
       :hall_up -> set_light(floor, type, is_ordered_list)
@@ -28,6 +40,9 @@ defmodule Lights do
     end
   end
 
+  @doc """
+  Sets the light of :cab orders
+  """
   def set_light(floor, :cab, driving_elevator, is_ordered_list) do
     is_ordered_list 
     |> Enum.each(fn is_ordered -> 
@@ -39,6 +54,9 @@ defmodule Lights do
       end)
   end
 
+  @doc """
+  Sets the light of :hall_up and :hall_down orders
+  """
   def set_light(floor, order_type, is_ordered_list) do
     case Enum.any?(is_ordered_list, fn x -> elem(x,1) end) do
       true -> Driver.set_order_button_light(order_type, floor, :on)
