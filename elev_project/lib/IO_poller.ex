@@ -80,7 +80,7 @@ defmodule SensorPoller do
   end
 
   @doc """
-  Starts a sensor poller in the default state
+  Starts a sensor poller for a `:floor_sensor` or `:obstruction_sensor`.
   """
   def sensor_poller(:floor_sensor, :between_floors) do
     Process.sleep(@polling_time)
@@ -103,9 +103,7 @@ defmodule SensorPoller do
     sensor_poller(:floor_sensor, :poller_idle)
   end
 
-  @doc """
-  Starts the obstruction sensor in the default state.
-  """
+
   def sensor_poller(:obstruction_sensor, :inactive) do
     Process.sleep(@polling_time)
     case Driver.get_obstruction_switch_state() do
