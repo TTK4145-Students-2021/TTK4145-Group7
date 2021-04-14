@@ -1,12 +1,17 @@
 defmodule Order do
-  # An order always has a key in the form {elevator_number, floor, order_type}
-
+  @moduledoc """
+  Module that starts a `GenServer` keeping track of all the orders for every connected elevator.
+  The `GenServer` state consists of a tuple containing the current elevator id and its complete
+  `order_map`. An `order` entry in the map always has a key in the form `{elevator_number, floor, order_type}
+  """
   @name :order_server
 
   @check_for_orders_interval Application.fetch_env!(:elevator_project, :check_for_orders_interval) 
   @top_floor Application.fetch_env!(:elevator_project, :top_floor)    
   @stop_cost Application.fetch_env!(:elevator_project, :stop_cost)
   @travel_cost Application.fetch_env!(:elevator_project, :travel_cost)
+  @multi_call_timeout Application.fetch_env!(:elevator_project, :multi_call_timeout)
+  @initialization_time Application.fetch_env!(:elevator_project, :initialization_time)
   @max_cost (2*@top_floor * (@stop_cost+@travel_cost))
 
   use GenServer
@@ -14,18 +19,20 @@ defmodule Order do
 
   def start_link([args]) do
     {:ok, pid} = GenServer.start_link(__MODULE__, args, name: @name)
-    Process.send_after(@name, :check_for_orders, 500)
+    Process.send_after(@name, :check_for_orders, @initialization_time)
     {:ok, pid}
   end
+
   @doc """
-  Sends an 
+  Sends an order to the order server. Asks every connected elevator to calculate their costs,
+  then sends the results to the connected elevators.
   """
   def send_order(order, from) do
     {order_elevator_number, floor, order_type} = order
     elevator_number = get_elevator_number()
 
     {node_costs, bad_nodes_cost_calc} =
-    GenServer.multi_call(@name, {:calc_cost, {elevator_number, floor, order_type}})
+    GenServer.multi_call([node() | Node.list()],@name, {:calc_cost, {elevator_number, floor, order_type}}, @multi_call_timeout)
 
     {winning_elevator, cost}  = 
     if from === :order_watchdog do
@@ -42,7 +49,7 @@ defmodule Order do
     end
 
     {acks, bad_nodes_new_order} =
-    GenServer.multi_call(Node.list(), @name, {:new_order, {winning_elevator, floor, order_type}})
+    GenServer.multi_call(Node.list(), @name, {:new_order, {winning_elevator, floor, order_type}}, @multi_call_timeout)
 
     n = Enum.count(acks)
     
@@ -51,7 +58,7 @@ defmodule Order do
       GenServer.call(@name, {:new_order, {winning_elevator, floor, order_type}})
 
       if from === :order_watchdog do
-        GenServer.multi_call(@name, {:order_timed_out, order})
+        GenServer.multi_call([node() | Node.list()],@name, {:order_timed_out, order}, @multi_call_timeout)
       end
 
     end
@@ -65,16 +72,25 @@ defmodule Order do
     node_costs
   end
 
+  @doc """
+  Asks order server to clear orders at the given floor.
+  Clears the completed `order` from the `order_map`. Stops the WatchDog timer as well.
+  """
   def order_completed(floor) do
-    GenServer.multi_call(@name, {:order_completed, {get_elevator_number(), floor, :dummy}})
+    elev_num = get_elevator_number()
+    GenServer.multi_call([node() | Node.list()],@name, {:order_completed, {elev_num, floor, :dummy}},@multi_call_timeout)
   end
 
+  @doc """
+  Function called when an elevator reconnects to the other nodes. Compares all the order maps
+  and asks the `order_server` to update their `order_map`.
+  """
   def compare_order_states() do  
-    {good_nodes,bad_nodes} = GenServer.multi_call(@name, :get_order_state)
-    order_maps = Enum.reduce(Keyword.values(good_nodes), [], fn x, acc -> acc++[elem(x,1)] end)
-    all_orders = Enum.reduce(order_maps, %{}, fn map, acc ->
-                              Map.merge(acc, map, fn _k, v1, v2 ->
-                                  v1 or v2
+    {good_nodes, bad_nodes} = GenServer.multi_call([node() | Node.list()], @name, :get_order_state, @multi_call_timeout)
+    all_available_order_maps = Enum.reduce(Keyword.values(good_nodes), [], fn x, acc -> acc++[elem(x,1)] end)
+    all_orders = Enum.reduce(all_available_order_maps, %{}, fn order_map, combined_orders ->
+                              Map.merge(combined_orders, order_map, fn _order, ordered_in1, ordered_in2 ->
+                                  ordered_in1 or ordered_in2
                                 end)
                               end)
 
@@ -85,13 +101,18 @@ defmodule Order do
     GenServer.cast(@name, {:update_order_map, all_orders})
   end
 
+  @doc """
+  Returns the `{elevator_number, order_map}` tuple from the order_server.
+  """
   def get_order_state() do
     GenServer.call(@name, :get_order_state)
   end
 
-
+  @doc """
+  Returns only the `elevator_number`.
+  """
   def get_elevator_number() do
-    GenServer.call(@name, :get_elevator_number)
+    Application.fetch_env!(:elevator_project, :elevator_number)
   end
 
 
@@ -103,6 +124,9 @@ defmodule Order do
     {:ok, state}
   end
 
+  @doc """
+  Tells this order_server what elevator has the lowest cost, adds it to the `order_map` and starts a WatchDog for this `order`.
+  """
   @impl true
   def handle_call({:new_order, order}, _from, {elevator_number, order_map}) do
     {_elev_num, _floor, order_type} = order
@@ -147,6 +171,7 @@ defmodule Order do
     {:reply, state, state}
   end
 
+
   @impl true
   def handle_call({:order_completed, order}, _from, {current_elevator, order_map}) do
     {elevator_number, floor, _order_type} = order
@@ -168,6 +193,10 @@ defmodule Order do
     {:reply, :ok, {current_elevator, order_map}}
   end
 
+  @doc """
+  Periodically checks the `order_map` for orders with a lower cost, these orders are then
+  sent to the elevator as the next order.
+  """
   @impl true
   def handle_info(:check_for_orders, {current_elevator, order_map}) do
     elevator_state = Elevator.get_elevator_state()
@@ -211,7 +240,6 @@ defmodule Order do
     {:noreply, {elevator_number, new_order_map}}
   end
 
-    #Returns a list of active orders, matching the arguments given, on the form [{elevator_number,floor,order_type}, ...]
   defp get_active_orders(order_map, elevator_number, direction, filter, floor_range \\ 0..@top_floor) do
     filter_out_order_type =
       case filter do

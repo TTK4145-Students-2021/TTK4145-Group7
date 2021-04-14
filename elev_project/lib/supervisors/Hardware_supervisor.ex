@@ -13,7 +13,7 @@ defmodule HardwareSupervisor do
       {SensorPoller.Supervisor, []}
     ]
 
-    opts = [strategy: :rest_for_one]
+    opts = [strategy: :one_for_one]
     Supervisor.init(children, opts)
   end
 end
