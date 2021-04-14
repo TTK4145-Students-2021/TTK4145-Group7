@@ -28,7 +28,7 @@ defmodule Network do
         Order.compare_order_states
     end
 
-    if dead_nodes > 1 do
+    if dead_nodes > 0 do
       Logger.warning("Lost connection to " <> to_string(dead_nodes) <> " nodes")
     end
 
