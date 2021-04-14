@@ -67,7 +67,7 @@ defmodule Order do
       Logger.warning(%{bad_nodes_cost_calc: bad_nodes_cost_calc,
         bad_nodes_new_order: bad_nodes_new_order})
     end
-    Logger.info(%{node_costs: node_costs, winning_elevator: winning_elevator, cost: cost})
+    Logger.debug(%{node_costs: node_costs, winning_elevator: winning_elevator, cost: cost})
 
     node_costs
   end
