@@ -1,6 +1,9 @@
 defmodule Order do
-  # An order always has a key in the form {elevator_number, floor, order_type}
-
+  @moduledoc """
+  Module that starts a `GenServer` keeping track of all the orders for every connected elevator.
+  The `GenServer` state consists of a tuple containing the current elevator id and its complete
+  `òrder_map`. An `order` entry in the map always has a key in the form `{elevator_number, floor, order_type}
+  """
   @name :order_server
 
   @top_floor Application.fetch_env!(:elevator_project, :top_floor)    
@@ -15,8 +18,10 @@ defmodule Order do
     Process.send_after(@name, :check_for_orders, 500)
     {:ok, pid}
   end
+
   @doc """
-  Sends an 
+  Sends an order to the order server. Asks every connected elevator to calculate their costs,
+  then sends the results to the connected elevators.
   """
   def send_order(order, from) do
     {order_elevator_number, floor, order_type} = order
@@ -25,9 +30,6 @@ defmodule Order do
     # timeout #Get all the costs back from all the elevators
     {node_costs, _bad_nodes_cost_calc} =
     GenServer.multi_call(@name, {:calc_cost, {elevator_number, floor, order_type}})
-
-    node_costs =
-    IO.inspect(node_costs)
 
     {winning_elevator, _cost}  = 
     if from === :order_watchdog do
@@ -63,27 +65,39 @@ defmodule Order do
     node_costs
   end
 
+  @doc """
+  Asks order server to clear orders at the given floor.
+  """
   def order_completed(floor) do
     GenServer.multi_call(@name, {:order_completed, {get_elevator_number(), floor, :dummy}})
   end
 
+  @doc """
+  Function called when an elevator reconnects to the other nodes. Compares all the order maps
+  and asks the `order_server` to update their `order_map`.
+  """
   def compare_order_states() do  
     {good_nodes,_bad_nodes} = GenServer.multi_call(@name, :get_order_state)
-    order_maps = Enum.reduce(Keyword.values(good_nodes), [], fn x, acc -> acc++[elem(x,1)] end)
-    all_orders = Enum.reduce(order_maps, %{}, fn map, acc ->
-                              Map.merge(acc, map, fn _k, v1, v2 ->
-                                  v1 or v2
+    all_available_order_maps = Enum.reduce(Keyword.values(good_nodes), [], fn x, acc -> acc++[elem(x,1)] end)
+    all_orders = Enum.reduce(all_available_order_maps, %{}, fn order_map, combined_orders ->
+                              Map.merge(combined_orders, order_map, fn _order, ordered_in1, ordered_in2 ->
+                                  ordered_in1 or ordered_in2
                                 end)
                               end)
 
     GenServer.cast(@name, {:update_order_map, all_orders})
   end
 
+  @doc """
+  Returns the `{elevator_number, order_map}` tuple from the order_server.
+  """
   def get_order_state() do
     GenServer.call(@name, :get_order_state)
   end
 
-
+  @doc """
+  Returns only the `elevator_number`.
+  """
   def get_elevator_number() do
     GenServer.call(@name, :get_elevator_number)
   end
@@ -97,6 +111,9 @@ defmodule Order do
     {:ok, state}
   end
 
+  @doc """
+  Tells this order_server what elevator has the lowest cost, adds it to the `order_map` and starts a WatchDog for this `order`.
+  """
   @impl true
   def handle_call({:new_order, order}, _from, {elevator_number, order_map}) do
     {_elev_num, _floor, order_type} = order
@@ -142,6 +159,10 @@ defmodule Order do
     {:reply, state, state}
   end
 
+  @doc """
+  Clears the completed `order` from the `order_map`. Function is called from a multi_call, so this
+  will clear it from all the connected elevators as well. Stops the WatchDog timer as well.
+  """
   @impl true
   def handle_call({:order_completed, order}, _from, {current_elevator, order_map}) do
     {elevator_number, floor, _order_type} = order
@@ -160,6 +181,10 @@ defmodule Order do
     {:reply, :ok, {current_elevator, order_map}}
   end
 
+  @doc """
+  Periodically checks the `order_map` for orders with a lower cost, these orders are then
+  sent to the elevator as the next order.
+  """
   @impl true
   def handle_info(:check_for_orders, {current_elevator, order_map}) do
     elevator_state = Elevator.get_elevator_state()
@@ -202,7 +227,9 @@ defmodule Order do
     {:noreply, {elevator_number, new_order_map}}
   end
 
-    #Returns a list of active orders, matching the arguments given, on the form [{elevator_number,floor,order_type}, ...]
+  @doc """
+  Returns a list of active orders, matching the arguments given, on the form `[{elevator_number,floor,order_type}, ...]`
+  """
   defp get_active_orders(order_map, elevator_number, direction, filter, floor_range \\ 0..@top_floor) do
     filter_out_order_type =
       case filter do
@@ -309,8 +336,7 @@ defmodule Order do
       else
         get_max_floor(orders_to_be_served, elevator_current_floor, ordered_floor)
       end
-    #IO.inspect(checking_floor, label: "Checking floor")
-    #IO.inspect(desired_direction, label: "Desired direction")
+      
     travel_distance = abs(elevator_current_floor - checking_floor) + abs(checking_floor - ordered_floor)
 
     # Does not count stop at ordered floor, but counts stop at current floor if the order is not cleared.
@@ -320,6 +346,10 @@ defmodule Order do
   
   end
 
+  @doc """
+  Constructs a map containing all the possible orders for the given setup of amount of
+  elevators and number of floors set in `config.exs`.
+  """
   defp create_order_map(num_of_elevators, top_floor, order_map \\ %{}) do
     order_map =
       Enum.reduce(ButtonPoller.Supervisor.get_all_buttons(top_floor), order_map, 
@@ -334,7 +364,4 @@ defmodule Order do
       order_map
     end
   end
-
-
-
 end
