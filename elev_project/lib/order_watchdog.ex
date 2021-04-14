@@ -3,6 +3,7 @@ defmodule WatchDog do
   @order_timeout Application.fetch_env!(:elevator_project, :order_timeout)
 
   use GenServer
+  require Logger
 
   def start_link([]) do
     GenServer.start_link(__MODULE__, "test", name: @name)
@@ -57,7 +58,7 @@ defmodule WatchDog do
 
   @impl true
   def handle_info({:timed_out, order}, state) do
-    IO.puts "Order timed out"
+    Logger.info(Order_timed_out: order)
     {_val, state} = Map.pop(state, order)
     Task.start(Order, :send_order, [order, @name])
     {:noreply, state}
