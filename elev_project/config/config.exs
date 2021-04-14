@@ -22,7 +22,10 @@ config :elevator_project,
 
     #IO
     polling_interval: 100,
-    lights_update_interval: 100
+    lights_update_interval: 100,
+
+    #Network
+    ping_interval: 1000
 
 config :logger,
     level: :info
