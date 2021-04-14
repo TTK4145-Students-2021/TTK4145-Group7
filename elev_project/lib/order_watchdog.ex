@@ -1,6 +1,6 @@
 defmodule WatchDog do
   @name :order_watchdog
-  @order_timeout 10_000
+  @order_timeout Application.fetch_env!(:elevator_project, :order_timeout)
 
   use GenServer
 
@@ -27,13 +27,12 @@ defmodule WatchDog do
   def complete_order(order) do
     {elevator_number, floor, _order_type} = order
     Enum.each([:hall_up,:hall_down], fn type -> GenServer.cast(@name, {:stop_timer, {elevator_number, floor, type}}) end)
-    #complete_order_helper({elevator_number, floor, order_type}) end)
   end
 
   @impl true
   def handle_call({:new_order, order}, _from, state) do
     state = if !Map.has_key?(state, order) do
-        timer = Process.send_after(self(), {:timed_out, order}, @order_timeout)
+        timer = Process.send_after(self(), {:timed_out, order}, @order_timeout )
         Map.put(state, order, timer)
       else 
         state
@@ -56,8 +55,6 @@ defmodule WatchDog do
     {:noreply, state}
   end
 
-
-
   @impl true
   def handle_info({:timed_out, order}, state) do
     IO.puts "Order timed out"
@@ -65,5 +62,4 @@ defmodule WatchDog do
     Task.start(Order, :send_order, [order, @name])
     {:noreply, state}
   end
-
 end

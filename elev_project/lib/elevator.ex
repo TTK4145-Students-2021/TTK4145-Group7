@@ -57,7 +57,6 @@ defmodule Elevator do
 
   @impl true
   def handle_event(:cast, {:serve_floor, floor}, :moving, data) do
-
     new_data =
       cond do
         floor > data.order ->
