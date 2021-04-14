@@ -13,6 +13,7 @@ config :elevator_project,
     #Order settings
     stop_cost: 1,
     travel_cost: 1,
+    order_penalty: 10,
     multi_call_timeout: 1_000,
     initialization_time: 1_000,
     check_for_orders_interval: 100,

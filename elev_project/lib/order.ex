@@ -6,12 +6,14 @@ defmodule Order do
   """
   @name :order_server
 
-  @check_for_orders_interval Application.fetch_env!(:elevator_project, :check_for_orders_interval) 
-  @top_floor Application.fetch_env!(:elevator_project, :top_floor)    
-  @stop_cost Application.fetch_env!(:elevator_project, :stop_cost)
-  @travel_cost Application.fetch_env!(:elevator_project, :travel_cost)
-  @multi_call_timeout Application.fetch_env!(:elevator_project, :multi_call_timeout)
-  @initialization_time Application.fetch_env!(:elevator_project, :initialization_time)
+  @check_for_orders_interval  Application.fetch_env!(:elevator_project, :check_for_orders_interval) 
+  @top_floor                  Application.fetch_env!(:elevator_project, :top_floor)    
+  @stop_cost                  Application.fetch_env!(:elevator_project, :stop_cost)
+  @travel_cost                Application.fetch_env!(:elevator_project, :travel_cost)
+  @multi_call_timeout         Application.fetch_env!(:elevator_project, :multi_call_timeout)
+  @initialization_time        Application.fetch_env!(:elevator_project, :initialization_time)
+  @order_penalty              Application.fetch_env!(:elevator_project, :order_penalty)
+
   @max_cost (2*@top_floor * (@stop_cost+@travel_cost))
 
   use GenServer
@@ -39,7 +41,7 @@ defmodule Order do
         node_costs
         |> Keyword.values()
         |> Enum.map(fn x -> {elev_n, cost} = x;
-          cost = if elev_n === order_elevator_number do @max_cost + 10 else cost end
+          cost = if elev_n === order_elevator_number do @max_cost + @order_penalty else cost end
           {elev_n, cost} end)
         |> Enum.min_by(fn x -> elem(x,1) end)
       else
@@ -151,7 +153,7 @@ defmodule Order do
       if(elevator_number === elevator_that_sent_order) do
         calculate_cost({elevator_number, ordered_floor, :cab}, order_map, Elevator.get_elevator_state())
       else
-        @max_cost + 10
+        @max_cost + @order_penalty
       end
 
     {:reply, {elevator_number, cost}, {elevator_number, order_map}}
