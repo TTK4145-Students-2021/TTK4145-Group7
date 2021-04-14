@@ -1,7 +1,7 @@
 defmodule ButtonPoller do
-  @name :IO_poller
+  @name :button_poller
   use Task
-  @polling_time 100
+  @polling_time Application.fetch_env!(:elevator_project, :polling_interval)
 
   def start_link(floor, button_type) do
     Task.start_link(__MODULE__, :button_poller, [floor, button_type, :released])
