@@ -71,7 +71,7 @@ defmodule Order do
   end
 
   def compare_order_states() do  
-    {good_nodes,_bad_nodes} = GenServer.multi_call(@name, :get_order_state)
+    {good_nodes,_bad_nodes} = GenServer.multi_call([node() | Node.list()], @name, :get_order_state, @multi_call_timeout)
     order_maps = Enum.reduce(Keyword.values(good_nodes), [], fn x, acc -> acc++[elem(x,1)] end)
     all_orders = Enum.reduce(order_maps, %{}, fn map, acc ->
                               Map.merge(acc, map, fn _k, v1, v2 ->
