@@ -2,8 +2,9 @@ defmodule Network do
   @moduledoc """
   Network module used to connect and keep the connection to the other elevators.
   """
-  
+
   use Task
+  require Logger
   
   def start_link([]) do
       Task.start_link(__MODULE__, :ping_nodes, [])
@@ -14,15 +15,21 @@ defmodule Network do
   """
   def ping_nodes(connected_nodes \\ 1) do 
     Process.sleep(1_000)
-    alive_nodes = 
+    node_answers = 
       get_all_nodes()
       |> Enum.reduce([], fn node, acc -> acc++[{node, Node.ping(node)}]end)
       |> Keyword.values()
-      |> Enum.count(fn x -> x === :pong end)
+
+    alive_nodes = Enum.count(node_answers, fn x -> x === :pong end)
+    dead_nodes = Enum.count(node_answers, fn x -> x === :pang end)
 
     if connected_nodes === 1 and alive_nodes > 1 do
-        IO.puts("BACK ONLINE BABY")
+        Logger.info("Connected to elevator network")
         Order.compare_order_states
+    end
+
+    if dead_nodes > 1 do
+      Logger.warning("Lost connection to " <> to_string(dead_nodes) <> " nodes")
     end
 
     ping_nodes(alive_nodes)

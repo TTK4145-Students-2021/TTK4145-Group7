@@ -1,7 +1,10 @@
 defmodule ButtonPoller do
   @name :button_poller
-  use Task
+  
   @polling_time Application.fetch_env!(:elevator_project, :polling_interval)
+
+  use Task
+  require Logger
 
   def start_link(floor, button_type) do
     Task.start_link(__MODULE__, :button_poller, [floor, button_type, :released])
@@ -26,7 +29,7 @@ defmodule ButtonPoller do
         :released
 
       state === 1 and button_state == :released ->
-        IO.puts("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
+        Logger.info("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
         Order.send_order({:dummy, floor, button_type}, @name)
         :pressed
       
@@ -40,6 +43,8 @@ end
 
 defmodule SensorPoller do
   use Task
+  require Logger
+
   @polling_time 100
 
   def start_link(sensor_type) do
@@ -78,7 +83,7 @@ defmodule SensorPoller do
   end
 
   def sensor_poller(:floor_sensor, floor) do
-    IO.puts("Lift at " <> to_string(floor))
+    Logger.info("Lift at " <> to_string(floor))
     Elevator.serve_floor(floor)
     Driver.set_floor_indicator(floor)
 
@@ -92,7 +97,7 @@ defmodule SensorPoller do
         sensor_poller(:obstruction_sensor, :inactive)
 
       :active ->
-        IO.puts("Obstruction active!")
+        Logger.info("Obstruction active!")
         Elevator.obstruction_switch(:active)
         sensor_poller(:obstruction_sensor, :active)
     end
@@ -102,7 +107,7 @@ defmodule SensorPoller do
     Process.sleep(@polling_time)
     case Driver.get_obstruction_switch_state() do
       :inactive ->
-        IO.puts("Obstruction released!")
+        Logger.info("Obstruction released!")
         Elevator.obstruction_switch(:inactive)
         sensor_poller(:obstruction_sensor, :inactive)
 

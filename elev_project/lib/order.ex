@@ -3,6 +3,7 @@ defmodule Order do
 
   @name :order_server
 
+  @check_for_orders_interval Application.fetch_env!(:elevator_project, :check_for_orders_interval) 
   @top_floor Application.fetch_env!(:elevator_project, :top_floor)    
   @stop_cost Application.fetch_env!(:elevator_project, :stop_cost)
   @travel_cost Application.fetch_env!(:elevator_project, :travel_cost)
@@ -23,11 +24,10 @@ defmodule Order do
     {order_elevator_number, floor, order_type} = order
     elevator_number = get_elevator_number()
 
-    # timeout #Get all the costs back from all the elevators
-    {node_costs, _bad_nodes_cost_calc} =
+    {node_costs, bad_nodes_cost_calc} =
     GenServer.multi_call(@name, {:calc_cost, {elevator_number, floor, order_type}})
 
-    {winning_elevator, _cost}  = 
+    {winning_elevator, cost}  = 
     if from === :order_watchdog do
       node_costs
       |> Keyword.values()
@@ -41,11 +41,9 @@ defmodule Order do
       |> Enum.min_by(fn x -> elem(x,1) end)
     end
 
-    {acks, _bad_nodes} =
+    {acks, bad_nodes_new_order} =
     GenServer.multi_call(Node.list(), @name, {:new_order, {winning_elevator, floor, order_type}})
 
-    IO.puts("Cost:")
-    IO.inspect(node_costs)
     n = Enum.count(acks)
     
     n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
@@ -57,6 +55,13 @@ defmodule Order do
       end
 
     end
+
+    if length(bad_nodes_cost_calc) > 0 or length(bad_nodes_new_order) > 0 do
+      Logger.warning(%{bad_nodes_cost_calc: bad_nodes_cost_calc,
+        bad_nodes_new_order: bad_nodes_new_order})
+    end
+    Logger.info(%{node_costs: node_costs, winning_elevator: winning_elevator, cost: cost})
+
     node_costs
   end
 
@@ -65,13 +70,17 @@ defmodule Order do
   end
 
   def compare_order_states() do  
-    {good_nodes,_bad_nodes} = GenServer.multi_call(@name, :get_order_state)
+    {good_nodes,bad_nodes} = GenServer.multi_call(@name, :get_order_state)
     order_maps = Enum.reduce(Keyword.values(good_nodes), [], fn x, acc -> acc++[elem(x,1)] end)
     all_orders = Enum.reduce(order_maps, %{}, fn map, acc ->
                               Map.merge(acc, map, fn _k, v1, v2 ->
                                   v1 or v2
                                 end)
                               end)
+
+    if length(bad_nodes) > 0 do
+      Logger.warning(%{bad_nodes: bad_nodes})
+    end
 
     GenServer.cast(@name, {:update_order_map, all_orders})
   end
@@ -188,10 +197,10 @@ defmodule Order do
           end)
         |>Enum.min()
 
-      Process.send_after(@name, :check_for_orders, 100)
+      Process.send_after(@name, :check_for_orders, @check_for_orders_interval)
       Elevator.new_order(destination)
     else
-      Process.send_after(@name, :check_for_orders, 100)
+      Process.send_after(@name, :check_for_orders, @check_for_orders_interval)
     end
 
     {:noreply, {current_elevator, order_map}}

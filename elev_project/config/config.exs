@@ -12,6 +12,7 @@ config :elevator_project,
     #Order settings
     stop_cost: 1,
     travel_cost: 1,
+    check_for_orders_interval: 100,
 
     #Watchdog settings
     order_timeout: 10_000,
@@ -21,4 +22,4 @@ config :elevator_project,
     lights_update_interval: 100
 
 config :logger,
-    level: :debug
+    level: :info
