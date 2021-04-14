@@ -13,7 +13,8 @@ defmodule Main do
     def start(_type, args) do
         {port, elevator_number, _number_of_elevators} = args
         IO.inspect(args)
+
+        Network.boot_node(to_string(elevator_number))
         ElevProject.Supervisor.start_link port,elevator_number
     end
-
 end

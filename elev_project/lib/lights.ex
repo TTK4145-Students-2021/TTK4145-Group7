@@ -1,6 +1,8 @@
 defmodule Lights do
   use Task
 
+  @lights_update_interval Application.fetch_env!(:elevator_project, :lights_update_interval)
+
   def start_link(_args) do
     Task.start_link(__MODULE__, :run, [])
   end
@@ -14,7 +16,7 @@ defmodule Lights do
     )
     |> Enum.each( fn orders -> update_lights(orders, driving_elevator) end)
 
-    Process.sleep(100)
+    Process.sleep(@lights_update_interval)
     run()
   end
 
