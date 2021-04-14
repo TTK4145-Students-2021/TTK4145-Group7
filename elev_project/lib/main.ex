@@ -9,7 +9,7 @@ defmodule Main do
     end
 
     def stop() do
-        Process.exit(self(), :kill)
+        Process.exit(self(), :normal)
     end
 
     def start(_type, args) do

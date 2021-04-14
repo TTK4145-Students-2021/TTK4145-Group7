@@ -70,6 +70,7 @@ defmodule Order do
 
   @doc """
   Asks order server to clear orders at the given floor.
+  Clears the completed `order` from the `order_map`. Stops the WatchDog timer as well.
   """
   def order_completed(floor) do
     elev_num = get_elevator_number()
@@ -162,10 +163,7 @@ defmodule Order do
     {:reply, state, state}
   end
 
-  @doc """
-  Clears the completed `order` from the `order_map`. Function is called from a multi_call, so this
-  will clear it from all the connected elevators as well. Stops the WatchDog timer as well.
-  """
+
   @impl true
   def handle_call({:order_completed, order}, _from, {current_elevator, order_map}) do
     {elevator_number, floor, _order_type} = order
@@ -234,9 +232,6 @@ defmodule Order do
     {:noreply, {elevator_number, new_order_map}}
   end
 
-  @doc """
-  Returns a list of active orders, matching the arguments given, on the form `[{elevator_number,floor,order_type}, ...]`
-  """
   defp get_active_orders(order_map, elevator_number, direction, filter, floor_range \\ 0..@top_floor) do
     filter_out_order_type =
       case filter do
@@ -357,10 +352,6 @@ defmodule Order do
   
   end
 
-  @doc """
-  Constructs a map containing all the possible orders for the given setup of amount of
-  elevators and number of floors set in `config.exs`.
-  """
   defp create_order_map(num_of_elevators, top_floor, order_map \\ %{}) do
     order_map =
       Enum.reduce(ButtonPoller.Supervisor.get_all_buttons(top_floor), order_map, 

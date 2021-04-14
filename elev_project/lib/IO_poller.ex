@@ -30,19 +30,25 @@ defmodule ButtonPoller do
     Process.sleep(@polling_time)
     state = Driver.get_order_button_state(floor, button_type)
 
+    %{
+      direction: _elevator_direction,
+      floor: elevator_current_floor,
+      order: _elevator_current_order,
+      obstruction: _obstruction,
+    } = Elevator.get_elevator_state()
     new_button_state = 
-    cond do
-      state === 0 ->
-        :released
+      cond do
+        state === 0 ->
+          :released
 
-      state === 1 and button_state == :released ->
-        IO.puts("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
-        Order.send_order({:dummy, floor, button_type}, @name)
-        :pressed
-      
-      state === 1 ->
-        :pressed
-    end
+        state === 1 and button_state == :released ->
+          IO.puts("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
+          if elevator_current_floor !== nil do Order.send_order({:elevator_number, floor, button_type}, @name) end
+          :pressed
+        
+        state === 1 ->
+          :pressed
+      end
 
     button_poller(floor, button_type, new_button_state)
   end
