@@ -3,6 +3,8 @@ defmodule Main do
 
     def start(port, elevator_number, number_of_elevators) do
         Application.put_env(:elevator_project, :number_of_elevators, number_of_elevators)
+        Application.put_env(:elevator_project, :elevator_number, elevator_number)
+        IO.inspect(Application.fetch_env!(:elevator_project, :elevator_number), label: "MY ELEVATOR NUMBER")
         start(:normal, {port,elevator_number, number_of_elevators})
     end
 

@@ -2,13 +2,16 @@ defmodule Order do
   @moduledoc """
   Module that starts a `GenServer` keeping track of all the orders for every connected elevator.
   The `GenServer` state consists of a tuple containing the current elevator id and its complete
-  `òrder_map`. An `order` entry in the map always has a key in the form `{elevator_number, floor, order_type}
+  `order_map`. An `order` entry in the map always has a key in the form `{elevator_number, floor, order_type}
   """
   @name :order_server
 
+  
   @top_floor Application.fetch_env!(:elevator_project, :top_floor)    
   @stop_cost Application.fetch_env!(:elevator_project, :stop_cost)
   @travel_cost Application.fetch_env!(:elevator_project, :travel_cost)
+  @multi_call_timeout Application.fetch_env!(:elevator_project, :multi_call_timeout)
+  @initialization_time Application.fetch_env!(:elevator_project, :initialization_time)
   @max_cost (2*@top_floor * (@stop_cost+@travel_cost))
 
   use GenServer
@@ -16,7 +19,7 @@ defmodule Order do
 
   def start_link([args]) do
     {:ok, pid} = GenServer.start_link(__MODULE__, args, name: @name)
-    Process.send_after(@name, :check_for_orders, 500)
+    Process.send_after(@name, :check_for_orders, @initialization_time)
     {:ok, pid}
   end
 
@@ -30,7 +33,7 @@ defmodule Order do
 
     # timeout #Get all the costs back from all the elevators
     {node_costs, _bad_nodes_cost_calc} =
-    GenServer.multi_call(@name, {:calc_cost, {elevator_number, floor, order_type}})
+    GenServer.multi_call([node() | Node.list()],@name, {:calc_cost, {elevator_number, floor, order_type}}, @multi_call_timeout)
 
     {winning_elevator, _cost}  = 
     if from === :order_watchdog do
@@ -47,7 +50,7 @@ defmodule Order do
     end
 
     {acks, _bad_nodes} =
-    GenServer.multi_call(Node.list(), @name, {:new_order, {winning_elevator, floor, order_type}})
+    GenServer.multi_call(Node.list(), @name, {:new_order, {winning_elevator, floor, order_type}}, @multi_call_timeout)
 
     IO.puts("Cost:")
     IO.inspect(node_costs)
@@ -58,7 +61,7 @@ defmodule Order do
       GenServer.call(@name, {:new_order, {winning_elevator, floor, order_type}})
 
       if from === :order_watchdog do
-        GenServer.multi_call(@name, {:order_timed_out, order})
+        GenServer.multi_call([node() | Node.list()],@name, {:order_timed_out, order}, @multi_call_timeout)
       end
 
     end
@@ -69,7 +72,8 @@ defmodule Order do
   Asks order server to clear orders at the given floor.
   """
   def order_completed(floor) do
-    GenServer.multi_call(@name, {:order_completed, {get_elevator_number(), floor, :dummy}})
+    elev_num = get_elevator_number()
+    GenServer.multi_call([node() | Node.list()],@name, {:order_completed, {elev_num, floor, :dummy}},@multi_call_timeout)
   end
 
   @doc """
@@ -77,7 +81,7 @@ defmodule Order do
   and asks the `order_server` to update their `order_map`.
   """
   def compare_order_states() do  
-    {good_nodes,_bad_nodes} = GenServer.multi_call(@name, :get_order_state)
+    {good_nodes,_bad_nodes} = GenServer.multi_call([node() | Node.list()], @name, :get_order_state, @multi_call_timeout)
     all_available_order_maps = Enum.reduce(Keyword.values(good_nodes), [], fn x, acc -> acc++[elem(x,1)] end)
     all_orders = Enum.reduce(all_available_order_maps, %{}, fn order_map, combined_orders ->
                               Map.merge(combined_orders, order_map, fn _order, ordered_in1, ordered_in2 ->
@@ -99,7 +103,7 @@ defmodule Order do
   Returns only the `elevator_number`.
   """
   def get_elevator_number() do
-    GenServer.call(@name, :get_elevator_number)
+    Application.fetch_env!(:elevator_project, :elevator_number)
   end
 
 
