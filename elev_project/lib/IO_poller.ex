@@ -37,7 +37,7 @@ defmodule ButtonPoller do
       floor: elevator_current_floor,
       order: _elevator_current_order,
       obstruction: _obstruction
-    } = Elevator.get_elevator_state()
+    } = Elevator.get_elevator_data()
 
     new_button_state =
       cond do

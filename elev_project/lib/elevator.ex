@@ -1,32 +1,54 @@
 defmodule Elevator do
+  @moduledoc """
+  Module that contains the FSM for the elevator.
+  """
   use GenStateMachine
-  @name :elevator_state_machine
 
+  @name :elevator_state_machine
   @door_open_time Application.fetch_env!(:elevator_project, :door_timer_interval)
+  
+  @doc """
+  Struct containing the data of the elevator.
+  """
   defstruct [:order, :floor, :direction, :obstruction]
 
-  # Client
+  @doc """
+  Starts the FSM
+  """
   def start_link(args \\ []) do
     GenStateMachine.start_link(__MODULE__, args, name: @name)
   end
 
+  @doc """
+  Serves a floor. Only call when the elevator actually is at a floor.
+  The elevator will update the data, and depending one the state keep moving or stop and open the door. 
+  If the elevator is initialising, it will end up ideling at a floor. 
+  """
   def serve_floor(floor) do
     GenStateMachine.cast(@name, {:serve_floor, floor})
   end
 
+  @doc """
+  Changes the order in the elevator data and therefore the floor the elevator is working to clear.
+  """
   def new_order(at_floor) do
     GenStateMachine.cast(@name, {:new_order, at_floor})
   end
 
+  @doc """
+  Changes the obstruction in the elevator data.
+  """
   def obstruction_switch(obstruction_state) do
     GenStateMachine.cast(@name, {:update_obstruction, obstruction_state})
   end
 
-  def get_elevator_state() do
-    GenStateMachine.call(@name, :get_elevator_state)
+  @doc """
+  Returns the data of the elevator.
+  """
+  def get_elevator_data() do
+    GenStateMachine.call(@name, :get_elevator_data)
   end
 
-  # Server (callbacks)
   @impl true
   def init(_) do
     data = %Elevator{
@@ -128,7 +150,7 @@ defmodule Elevator do
   end
 
   @impl true
-  def handle_event({:call, from}, :get_elevator_state, _state, data) do
+  def handle_event({:call, from}, :get_elevator_data, _state, data) do
     {:keep_state_and_data, [{:reply, from, data}]}
   end
 end
