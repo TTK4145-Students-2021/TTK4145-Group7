@@ -14,7 +14,7 @@ config :elevator_project,
     stop_cost: 1,
     travel_cost: 1,
     order_penalty: 10,
-    multi_call_timeout: 1_000,
+    multi_call_timeout: 100,
     initialization_time: 1_000,
     check_for_orders_interval: 100,
 
@@ -26,7 +26,8 @@ config :elevator_project,
     lights_update_interval: 100,
 
     #Network
-    ping_interval: 1000
+    ping_interval: 1000,
+    node_ips: [:"1@10.24.35.90", :"2@10.24.39.216"]
 
 config :logger,
-    level: :info
+    level: :debug

@@ -51,7 +51,7 @@ defmodule Network do
       {:ok, #PID<0.12.2>}
       iex(frank@10.100.23.253)> 
   """
-  def boot_node(node_name, tick_time \\ 15000) do
+  def boot_node(node_name, tick_time \\ 7_500) do
     ip = get_my_ip() |> :inet.ntoa() |> to_string()
     full_name = node_name <> "@" <> ip
     Node.start(String.to_atom(full_name), :longnames, tick_time)
@@ -68,6 +68,7 @@ defmodule Network do
   """
   def get_all_nodes() do
     n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
-    Enum.map(1..n_elevators, fn x -> String.to_atom(to_string(x) <> "@" <> to_string(:inet.ntoa(get_my_ip()))) end)
+    Application.fetch_env!(:elevator_project, :node_ips)
+    #Enum.map(1..n_elevators, fn x -> String.to_atom(to_string(x) <> "@" <> to_string(:inet.ntoa(get_my_ip()))) end)
   end
 end

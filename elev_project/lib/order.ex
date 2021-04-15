@@ -57,12 +57,11 @@ defmodule Order do
     
     n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
     if n > 0 or order_type === :cab or n_elevators === 1 or from === :order_watchdog do
-      GenServer.call(@name, {:new_order, {winning_elevator, floor, order_type}})
-
       if from === :order_watchdog do
         GenServer.multi_call([node() | Node.list()],@name, {:order_timed_out, order}, @multi_call_timeout)
       end
 
+      GenServer.call(@name, {:new_order, {winning_elevator, floor, order_type}})
     end
 
     if length(bad_nodes_cost_calc) > 0 or length(bad_nodes_new_order) > 0 do
@@ -350,13 +349,13 @@ defmodule Order do
     # Does not count stop at ordered floor
     n_stops = Enum.count(orders_to_be_served)
 
-    Logger.debug(%{order: order, 
-      elevator_state: elevator_state,
-      orders_to_be_served: orders_to_be_served, 
-      checking_floor: checking_floor,
-      desired_direction: desired_direction,
-      travel_distance: travel_distance,
-      n_stops: n_stops})
+    # Logger.debug(%{order: order, 
+    #   elevator_state: elevator_state,
+    #   orders_to_be_served: orders_to_be_served, 
+    #   checking_floor: checking_floor,
+    #   desired_direction: desired_direction,
+    #   travel_distance: travel_distance,
+    #   n_stops: n_stops})
 
     @travel_cost * travel_distance + @stop_cost * n_stops
   
