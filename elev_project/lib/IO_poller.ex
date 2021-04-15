@@ -1,10 +1,9 @@
 defmodule ButtonPoller do
-
   @moduledoc """
   Module used for creating a process to monitor a single button.
   """
   @name :button_poller
-  
+
   @polling_time Application.fetch_env!(:elevator_project, :polling_interval)
 
   use Task
@@ -37,18 +36,23 @@ defmodule ButtonPoller do
       direction: _elevator_direction,
       floor: elevator_current_floor,
       order: _elevator_current_order,
-      obstruction: _obstruction,
+      obstruction: _obstruction
     } = Elevator.get_elevator_state()
-    new_button_state = 
+
+    new_button_state =
       cond do
         state === 0 ->
           :released
 
         state === 1 and button_state == :released ->
           Logger.info("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
-          if elevator_current_floor !== nil do Order.send_order({:elevator_number, floor, button_type}, @name) end
+
+          if elevator_current_floor !== nil do
+            Order.send_order({:elevator_number, floor, button_type}, @name)
+          end
+
           :pressed
-        
+
         state === 1 ->
           :pressed
       end
@@ -98,6 +102,7 @@ defmodule SensorPoller do
 
   def sensor_poller(:floor_sensor, :poller_idle) do
     Process.sleep(@polling_time)
+
     case Driver.get_floor_sensor_state() do
       :between_floors -> sensor_poller(:floor_sensor, :between_floors)
       _other -> sensor_poller(:floor_sensor, :poller_idle)
@@ -112,9 +117,9 @@ defmodule SensorPoller do
     sensor_poller(:floor_sensor, :poller_idle)
   end
 
-
   def sensor_poller(:obstruction_sensor, :inactive) do
     Process.sleep(@polling_time)
+
     case Driver.get_obstruction_switch_state() do
       :inactive ->
         sensor_poller(:obstruction_sensor, :inactive)
@@ -128,6 +133,7 @@ defmodule SensorPoller do
 
   def sensor_poller(:obstruction_sensor, :active) do
     Process.sleep(@polling_time)
+
     case Driver.get_obstruction_switch_state() do
       :inactive ->
         Logger.info("Obstruction released!")

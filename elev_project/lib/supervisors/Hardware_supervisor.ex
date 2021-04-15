@@ -2,7 +2,11 @@ defmodule HardwareSupervisor do
   use Supervisor
 
   def start_link([port]) do
-    Supervisor.start_link(__MODULE__, {:ok, Application.fetch_env!(:elevator_project, :top_floor) , port}, name: __MODULE__)
+    Supervisor.start_link(
+      __MODULE__,
+      {:ok, Application.fetch_env!(:elevator_project, :top_floor), port},
+      name: __MODULE__
+    )
   end
 
   def init({:ok, top_floor, port}) do

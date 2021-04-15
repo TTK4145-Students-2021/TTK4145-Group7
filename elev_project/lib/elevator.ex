@@ -26,8 +26,6 @@ defmodule Elevator do
     GenStateMachine.call(@name, :get_elevator_state)
   end
 
-
-
   # Server (callbacks)
   @impl true
   def init(_) do
@@ -37,11 +35,10 @@ defmodule Elevator do
       direction: nil,
       obstruction: nil
     }
-    
+
     data = %{data | obstruction: Driver.get_obstruction_switch_state(), direction: :down}
     Driver.set_door_open_light(:off)
     Driver.set_motor_direction(:down)
-
 
     {:ok, :init, data}
   end
@@ -96,7 +93,7 @@ defmodule Elevator do
     Process.send_after(@name, :close_door, @door_open_time)
     {:next_state, :door_open, data}
   end
-  
+
   @impl true
   def handle_event(:cast, {:new_order, at_floor}, :idle, data) do
     new_data =
@@ -135,6 +132,3 @@ defmodule Elevator do
     {:keep_state_and_data, [{:reply, from, data}]}
   end
 end
-
-
-

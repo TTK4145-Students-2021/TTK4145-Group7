@@ -27,20 +27,24 @@ defmodule WatchDog do
 
   def complete_order(order) do
     {elevator_number, floor, _order_type} = order
-    Enum.each([:hall_up,:hall_down], fn type -> GenServer.cast(@name, {:stop_timer, {elevator_number, floor, type}}) end)
+
+    Enum.each([:hall_up, :hall_down], fn type ->
+      GenServer.cast(@name, {:stop_timer, {elevator_number, floor, type}})
+    end)
   end
 
   @impl true
   def handle_call({:new_order, order}, _from, state) do
-    state = if !Map.has_key?(state, order) do
-        timer = Process.send_after(self(), {:timed_out, order}, @order_timeout )
+    state =
+      if !Map.has_key?(state, order) do
+        timer = Process.send_after(self(), {:timed_out, order}, @order_timeout)
         Map.put(state, order, timer)
-      else 
+      else
         state
-    end
+      end
+
     {:reply, :ok, state}
   end
-  
 
   @impl true
   def handle_call(:get_order_state, _from, state) do
@@ -50,9 +54,11 @@ defmodule WatchDog do
   @impl true
   def handle_cast({:stop_timer, order}, state) do
     {timer, state} = Map.pop(state, order, :non_existing)
+
     if timer !== :non_existing do
       Process.cancel_timer(timer)
     end
+
     {:noreply, state}
   end
 
