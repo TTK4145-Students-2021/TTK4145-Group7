@@ -44,31 +44,23 @@ defmodule Network do
   end
 
   @doc """
-  Template from Jostein Løwer
-  boots a node with a specified tick time. node_name sets the node name before @. The IP-address is
-  automatically imported
-      iex> Network.boot_node "frank"
-      {:ok, #PID<0.12.2>}
-      iex(frank@10.100.23.253)> 
+    boots node with a given elevator number and ip given from the config file
   """
-  def boot_node(node_name, tick_time \\ 7_500) do
-    ip = get_my_ip() |> :inet.ntoa() |> to_string()
-    full_name = node_name <> "@" <> ip
-    Node.start(String.to_atom(full_name), :longnames, tick_time)
+  def boot_node(_node_name, tick_time \\ 7_500) do
+    node_ips = Application.fetch_env!(:elevator_project, :node_ips)
+    elevator_number = Application.fetch_env!(:elevator_project, :elevator_number)
+    full_name = elem(List.to_tuple(node_ips), elevator_number-1)
+    Node.start(full_name, :longnames, tick_time)
     Node.set_cookie(:epicalyx)
   end
 
-  def get_my_ip do
-    {:ok, [{ip, _, _}, _]} = :inet.getif
-    ip
-  end
 
   @doc """
   Gets a list of all the elevator node names in the system.
   """
   def get_all_nodes() do
-    #n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
     Application.fetch_env!(:elevator_project, :node_ips)
+    #n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
     #Enum.map(1..n_elevators, fn x -> String.to_atom(to_string(x) <> "@" <> to_string(:inet.ntoa(get_my_ip()))) end)
   end
 end

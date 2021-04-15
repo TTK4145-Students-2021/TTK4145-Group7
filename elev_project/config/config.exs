@@ -19,7 +19,7 @@ config :elevator_project,
     check_for_orders_interval: 100,
 
     #Watchdog settings
-    order_timeout: 10_000,
+    order_timeout: 12_250,
 
     #IO
     polling_interval: 100,
