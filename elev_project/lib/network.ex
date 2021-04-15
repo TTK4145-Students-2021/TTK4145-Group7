@@ -28,7 +28,7 @@ defmodule Network do
       |> Enum.count(fn x -> x === :pong end)
 
     cond do
-      connected_nodes === 1 and alive_nodes > 1 ->
+      connected_nodes < alive_nodes ->
           Logger.info("A node reconnected to elevator network")
           Order.compare_order_states
 
@@ -67,7 +67,7 @@ defmodule Network do
   Gets a list of all the elevator node names in the system.
   """
   def get_all_nodes() do
-    n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
+    #n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
     Application.fetch_env!(:elevator_project, :node_ips)
     #Enum.map(1..n_elevators, fn x -> String.to_atom(to_string(x) <> "@" <> to_string(:inet.ntoa(get_my_ip()))) end)
   end

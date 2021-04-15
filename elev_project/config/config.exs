@@ -11,10 +11,10 @@ config :elevator_project,
     door_timer_interval: 2_000,
 
     #Order settings
-    stop_cost: 1,
-    travel_cost: 1,
+    stop_cost: 2,
+    travel_cost: 3,
     order_penalty: 10,
-    multi_call_timeout: 100,
+    multi_call_timeout: 500,
     initialization_time: 1_000,
     check_for_orders_interval: 100,
 
@@ -27,7 +27,7 @@ config :elevator_project,
 
     #Network
     ping_interval: 1000,
-    node_ips: [:"1@10.24.35.90", :"2@10.24.39.216"]
+    node_ips: [:"1@10.24.35.90", :"2@10.24.39.216", :"3@10.24.35.90"]
 
 config :logger,
-    level: :debug
+    level: :info
