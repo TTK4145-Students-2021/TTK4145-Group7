@@ -99,6 +99,7 @@ defmodule Order do
       Logger.warning(%{bad_nodes: bad_nodes})
     end
 
+    Enum.each(all_orders, fn {{elev_num,floor,type}, is_ordered} -> if(is_ordered and type !== :cab) do WatchDog.new_order({elev_num,floor,type}) end end)
     GenServer.cast(@name, {:update_order_map, all_orders})
   end
 
