@@ -1,14 +1,14 @@
 defmodule ElevProject.Supervisor do
   use Supervisor
 
-  def start_link(port, elevator_number) do
-    Supervisor.start_link(__MODULE__, {port, elevator_number}, name: __MODULE__)
+  def start_link(port) do
+    Supervisor.start_link(__MODULE__, port, name: __MODULE__)
   end
 
-  def init({port, elevator_number}) do
+  def init(port) do
     children = [
       {HardwareSupervisor, [port]},
-      {Order, [elevator_number]},
+      {Order, []},
       {Lights, []},
       {Network, []},
       {WatchDog, []}

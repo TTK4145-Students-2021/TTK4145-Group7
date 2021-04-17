@@ -19,8 +19,8 @@ defmodule Order do
   use GenServer
   require Logger
 
-  def start_link([args]) do
-    {:ok, pid} = GenServer.start_link(__MODULE__, args, name: @name)
+  def start_link([]) do
+    {:ok, pid} = GenServer.start_link(__MODULE__, [], name: @name)
     Process.send_after(@name, :check_for_orders, @initialization_time)
     {:ok, pid}
   end
@@ -31,7 +31,7 @@ defmodule Order do
   """
   def send_order(order, from) do
     {order_elevator_number, floor, order_type} = order
-    elevator_number = get_elevator_number()
+    elevator_number = Application.fetch_env!(:elevator_project, :elevator_number)
 
     {node_costs, bad_nodes_cost_calc} =
       GenServer.multi_call([node() | Node.list()],@name, {:calc_cost, {elevator_number, floor, order_type}}, @multi_call_timeout)
@@ -78,8 +78,8 @@ defmodule Order do
   Clears the completed `order` from the `order_map`. Stops the WatchDog timer as well.
   """
   def order_completed(floor) do
-    elev_num = get_elevator_number()
-    GenServer.multi_call([node() | Node.list()],@name, {:order_completed, {elev_num, floor, :dummy}},@multi_call_timeout)
+    elevator_number = Application.fetch_env!(:elevator_project, :elevator_number)
+    GenServer.multi_call([node() | Node.list()],@name, {:order_completed, {elevator_number, floor, :dummy}},@multi_call_timeout)
   end
 
   @doc """
@@ -88,7 +88,7 @@ defmodule Order do
   """
   def compare_order_states() do  
     {good_nodes, bad_nodes} = GenServer.multi_call([node() | Node.list()], @name, :get_order_state, @multi_call_timeout)
-    all_available_order_maps = Enum.reduce(Keyword.values(good_nodes), [], fn x, acc -> acc++[elem(x,1)] end)
+    all_available_order_maps = Enum.reduce(Keyword.values(good_nodes), [], fn x, acc -> acc++[x] end)
     all_orders = Enum.reduce(all_available_order_maps, %{}, fn order_map, combined_orders ->
                               Map.merge(combined_orders, order_map, fn _order, ordered_in1, ordered_in2 ->
                                   ordered_in1 or ordered_in2
@@ -110,19 +110,11 @@ defmodule Order do
     GenServer.call(@name, :get_order_state)
   end
 
-  @doc """
-  Returns only the `elevator_number`.
-  """
-  def get_elevator_number() do
-    Application.fetch_env!(:elevator_project, :elevator_number)
-  end
-
-
   @impl true
-  def init(elevator_number) do
+  def init(_args) do
     n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
     order_map = create_order_map(n_elevators, @top_floor)
-    state = {elevator_number, order_map}
+    state =  order_map#{elevator_number, order_map}
     {:ok, state}
   end
 
@@ -130,7 +122,7 @@ defmodule Order do
   Tells this order_server what elevator has the lowest cost, adds it to the `order_map` and starts a WatchDog for this `order`.
   """
   @impl true
-  def handle_call({:new_order, order}, _from, {elevator_number, order_map}) do
+  def handle_call({:new_order, order}, _from, order_map) do
     {_elev_num, _floor, order_type} = order
     order_map = Map.put(order_map, order, true)
 
@@ -139,16 +131,12 @@ defmodule Order do
       Task.start(WatchDog, :new_order, [order])
     end
     
-    {:reply, :ok, {elevator_number, order_map}}
+    {:reply, :ok, order_map}
   end
 
   @impl true
-  def handle_call(:get_elevator_number, _from, {elevator_number, order_map}) do
-    {:reply, elevator_number, {elevator_number, order_map}}
-  end
-
-  @impl true
-  def handle_call({:calc_cost, {elevator_that_sent_order, ordered_floor, :cab}}, _from, {elevator_number, order_map}) do
+  def handle_call({:calc_cost, {elevator_that_sent_order, ordered_floor, :cab}}, _from, order_map) do
+    elevator_number = Application.fetch_env!(:elevator_project, :elevator_number)
     cost =
       if(elevator_number === elevator_that_sent_order) do
         calculate_cost({elevator_number, ordered_floor, :cab}, order_map, Elevator.get_elevator_state())
@@ -156,26 +144,26 @@ defmodule Order do
         @max_cost + @order_penalty
       end
 
-    {:reply, {elevator_number, cost}, {elevator_number, order_map}}
+    {:reply, {elevator_number, cost}, order_map}
   end
 
   @impl true
-  def handle_call({:calc_cost, order}, _from, {elevator_number, order_map}) do
+  def handle_call({:calc_cost, order}, _from, order_map) do
     {_elevator_that_sendt_order, ordered_floor, order_type} = order
-
+    elevator_number = Application.fetch_env!(:elevator_project, :elevator_number)
     cost = calculate_cost({elevator_number,ordered_floor,order_type}, order_map, Elevator.get_elevator_state())
 
-    {:reply, {elevator_number, cost}, {elevator_number, order_map}}
+    {:reply, {elevator_number, cost}, order_map}
   end
 
   @impl true
-  def handle_call(:get_order_state, _from, state) do
-    {:reply, state, state}
+  def handle_call(:get_order_state, _from, order_map) do
+    {:reply, order_map, order_map}
   end
 
 
   @impl true
-  def handle_call({:order_completed, order}, _from, {current_elevator, order_map}) do
+  def handle_call({:order_completed, order}, _from, order_map) do
     {elevator_number, floor, _order_type} = order
 
     order_map = order_map
@@ -185,14 +173,14 @@ defmodule Order do
 
     Task.start(WatchDog, :complete_order, [order])
 
-    {:reply, :ok, {current_elevator, order_map}}
+    {:reply, :ok, order_map}
   end
 
   @impl true
-  def handle_call({:order_timed_out, order}, _from, {current_elevator, order_map}) do
+  def handle_call({:order_timed_out, order}, _from, order_map) do
     order_map = Map.put(order_map, order, false)
 
-    {:reply, :ok, {current_elevator, order_map}}
+    {:reply, :ok, order_map}
   end
 
   @doc """
@@ -200,7 +188,8 @@ defmodule Order do
   sent to the elevator as the next order.
   """
   @impl true
-  def handle_info(:check_for_orders, {current_elevator, order_map}) do
+  def handle_info(:check_for_orders, order_map) do
+    current_elevator = Application.fetch_env!(:elevator_project, :elevator_number)
     elevator_state = Elevator.get_elevator_state()
     %{
       direction: elevator_direction,
@@ -234,12 +223,12 @@ defmodule Order do
       Process.send_after(@name, :check_for_orders, @check_for_orders_interval)
     end
 
-    {:noreply, {current_elevator, order_map}}
+    {:noreply, order_map}
   end
 
   @impl true
-  def handle_cast({:update_order_map, new_order_map}, {elevator_number, _order_map}) do
-    {:noreply, {elevator_number, new_order_map}}
+  def handle_cast({:update_order_map, new_order_map}, _order_map) do
+    {:noreply, new_order_map}
   end
 
   defp get_active_orders(order_map, elevator_number, direction, filter, floor_range \\ 0..@top_floor) do

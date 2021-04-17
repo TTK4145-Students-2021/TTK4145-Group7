@@ -46,7 +46,7 @@ defmodule Network do
   @doc """
     boots node with a given elevator number and ip given from the config file
   """
-  def boot_node(_node_name, tick_time \\ 7_500) do
+  def boot_node(tick_time \\ 7_500) do
     node_ips = Application.fetch_env!(:elevator_project, :node_ips)
     elevator_number = Application.fetch_env!(:elevator_project, :elevator_number)
     full_name = elem(List.to_tuple(node_ips), elevator_number-1)

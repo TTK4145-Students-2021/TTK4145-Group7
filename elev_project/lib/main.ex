@@ -14,10 +14,8 @@ defmodule Main do
     end
 
     def start(_type, args) do
-        {port, elevator_number, _number_of_elevators} = args
-        Logger.info(args: args)
-
-        Network.boot_node(to_string(elevator_number))
-        ElevProject.Supervisor.start_link port,elevator_number
+        {port, _elevator_number, _number_of_elevators} = args
+        Network.boot_node()
+        ElevProject.Supervisor.start_link port
     end
 end
