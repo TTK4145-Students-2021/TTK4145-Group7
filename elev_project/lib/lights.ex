@@ -17,7 +17,8 @@ defmodule Lights do
   The main run function that recursively runs to update the lights
   """
   def run() do
-    {driving_elevator, order_map} = Order.get_order_state()
+    order_map = Order.get_order_state()
+    driving_elevator = Application.fetch_env!(:elevator_project, :elevator_number)
     order_map 
     |> Enum.group_by(
       fn {{_elev_num, floor, type}, _is_ordered} -> {floor, type} end,
