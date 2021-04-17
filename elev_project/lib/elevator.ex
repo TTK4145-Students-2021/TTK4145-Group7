@@ -22,8 +22,8 @@ defmodule Elevator do
     GenStateMachine.cast(@name, {:update_obstruction, obstruction_state})
   end
 
-  def get_elevator_state() do
-    GenStateMachine.call(@name, :get_elevator_state)
+  def get_elevator_data() do
+    GenStateMachine.call(@name, :get_elevator_data)
   end
 
 
@@ -131,7 +131,7 @@ defmodule Elevator do
   end
 
   @impl true
-  def handle_event({:call, from}, :get_elevator_state, _state, data) do
+  def handle_event({:call, from}, :get_elevator_data, _state, data) do
     {:keep_state_and_data, [{:reply, from, data}]}
   end
 end

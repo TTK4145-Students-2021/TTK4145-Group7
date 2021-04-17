@@ -27,7 +27,7 @@ config :elevator_project,
 
     #Network
     ping_interval: 1000,
-    node_ips: [:"1@192.168.1.56", :"2@192.168.1.56", :"3@192.168.1.56"]
+    node_ips: [:"1@192.168.1.55", :"2@192.168.1.56", :"3@192.168.1.57"]
 
 config :logger,
     level: :info

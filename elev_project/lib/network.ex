@@ -30,7 +30,7 @@ defmodule Network do
     cond do
       connected_nodes < alive_nodes ->
           Logger.info("A node reconnected to elevator network")
-          Order.compare_order_states
+          Order.compare_order_maps
 
       connected_nodes > alive_nodes ->
         Enum.each(node_answers, fn x -> if elem(x,1) === :pang do 

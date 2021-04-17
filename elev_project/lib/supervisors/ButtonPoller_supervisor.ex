@@ -24,11 +24,12 @@ defmodule ButtonPoller.Supervisor do
     Supervisor.init(children, options)
   end
 
-  # From Jostein Løwer
+
   def get_all_button_types do
     [:hall_up, :hall_down, :cab]
   end
-
+  
+  #Retrieved from Jostein Løwer
   def get_buttons_of_type(button_type, top_floor) do
     floor_list =
       case button_type do
@@ -40,6 +41,7 @@ defmodule ButtonPoller.Supervisor do
     floor_list |> Enum.map(fn floor -> %ElevatorOrder{floor: floor, type: button_type} end)
   end
 
+  #Retrieved from Jostein Løwer
   def get_all_buttons(top_floor) do
     get_all_button_types()
     |> Enum.map(fn button_type -> get_buttons_of_type(button_type, top_floor) end)

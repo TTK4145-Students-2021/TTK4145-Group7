@@ -38,7 +38,7 @@ defmodule ButtonPoller do
       floor: elevator_current_floor,
       order: _elevator_current_order,
       obstruction: _obstruction,
-    } = Elevator.get_elevator_state()
+    } = Elevator.get_elevator_data()
     new_button_state = 
       cond do
         state === 0 ->
@@ -51,8 +51,6 @@ defmodule ButtonPoller do
         
         state === 1 ->
           :pressed
-        state === {:error, :timeout} ->
-          Logger.warning("Could not fetch order button state.")
       end
 
     button_poller(floor, button_type, new_button_state)
@@ -125,9 +123,6 @@ defmodule SensorPoller do
         Logger.info("Obstruction active!")
         Elevator.obstruction_switch(:active)
         sensor_poller(:obstruction_sensor, :active)
-
-      _other -> 
-        Logger.warning("Could not fetch obstruction switch state")
     end
   end
 
@@ -141,9 +136,6 @@ defmodule SensorPoller do
 
       :active ->
         sensor_poller(:obstruction_sensor, :active)
-
-      _other -> 
-        Logger.warning("Could not fetch obstruction switch state")
     end
   end
 end
