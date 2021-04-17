@@ -52,7 +52,7 @@ All of these modules are implemented under the `Main` application, which starts 
 
 ## How to run
 The entry point to the program is the `elev_project/lib/main.ex` file, or the `elev_project/elevator_run.sh` bash script.
-To change config parameters go to `elev_project/config/config.exs`.
+To change config parameters go to `elev_project/config/config.exs`. **IMPORTANT** the network config needs to be changed based on IP, as we manually add them to the list of `node_ips` in `config.exs`.
 
 ### Run using the script
 
@@ -65,9 +65,9 @@ sudo apt install tmux
 ### Run the script
 If you have tmux installed you can run the `elevator_run.sh` script.
 
-To navigate the tmux windows visit [tmux-cheat-sheet](https://tmuxcheatsheet.com/)
+To navigate the tmux windows visit [tmux-cheat-sheet](https://tmuxcheatsheet.com/), to enable mouse clicking create ~/.tmux.conf and add the line `set-window-option -g mouse on`
 
-With 1,2 or 3 `total_number_of_elevators`.
+With 1,2 or 3 `total_number_of_elevators`.`
 Navigate to the `elevator_run_sh` script.
 ```
 ./elevator_run.sh <total_number_of_elevators>
