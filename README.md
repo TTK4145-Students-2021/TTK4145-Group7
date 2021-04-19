@@ -78,7 +78,7 @@ If you have tmux installed you can run the `elevator_run.sh` script.
 
 To navigate the tmux windows visit [tmux-cheat-sheet](https://tmuxcheatsheet.com/), to enable mouse clicking create ~/.tmux.conf and add the line `set-window-option -g mouse on`
 
-With 1,2 or 3 `total_number_of_elevators`.`
+With 1,2 or 3 `total_number_of_elevators`.
 Navigate to the `elevator_run_sh` script.
 ```
 ./elevator_run.sh <total_number_of_elevators>
