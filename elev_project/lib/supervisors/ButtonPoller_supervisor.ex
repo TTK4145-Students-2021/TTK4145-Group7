@@ -8,6 +8,9 @@ defmodule ButtonPoller.Supervisor do
   """
   use Supervisor
 
+  @doc """
+  Starts all the ButtonPollers.
+  """
   def start_link([top_floor]) do
     Supervisor.start_link(__MODULE__, {:ok, top_floor}, name: Button.Supervisor)
   end
@@ -24,12 +27,18 @@ defmodule ButtonPoller.Supervisor do
     Supervisor.init(children, options)
   end
 
-
+  @doc """
+  Gets all the different button types.
+  """
   def get_all_button_types do
     [:hall_up, :hall_down, :cab]
   end
   
-  #Retrieved from Jostein Løwer
+  
+  #Retrieved from Jostein Løwer - https://github.com/jostlowe/kokeplata
+  @doc """
+  Returns a list of maps with all the given `button_type` orders at all the floors.
+  """
   def get_buttons_of_type(button_type, top_floor) do
     floor_list =
       case button_type do
@@ -41,7 +50,10 @@ defmodule ButtonPoller.Supervisor do
     floor_list |> Enum.map(fn floor -> %ElevatorOrder{floor: floor, type: button_type} end)
   end
 
-  #Retrieved from Jostein Løwer
+  #Retrieved from Jostein Løwer - https://github.com/jostlowe/kokeplata
+  @doc """
+  Returns a list of maps with all the given floors and types. 
+  """
   def get_all_buttons(top_floor) do
     get_all_button_types()
     |> Enum.map(fn button_type -> get_buttons_of_type(button_type, top_floor) end)

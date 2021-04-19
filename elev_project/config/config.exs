@@ -9,13 +9,14 @@ config :elevator_project,
     #Elevator settings
     elevator_number: 1, #Changes on runtime, this is a dummy variable, 1-indexed
     door_timer_interval: 2_000,
+    try_to_close_door_interval: 10,
 
     #Order settings
     stop_cost: 2,
     travel_cost: 3,
     order_penalty: 10,
     multi_call_timeout: 500,
-    initialization_time: 1_000,
+    initialization_time: 1_500,
     check_for_orders_interval: 100,
 
     #Watchdog settings
@@ -27,7 +28,7 @@ config :elevator_project,
 
     #Network
     ping_interval: 1000,
-    node_ips: [:"1@192.168.1.55", :"2@192.168.1.56", :"3@192.168.1.57"]
+    node_ips: [:"1@192.168.0.179", :"2@192.168.0.179", :"3@192.168.0.179"]
 
 config :logger,
     level: :info

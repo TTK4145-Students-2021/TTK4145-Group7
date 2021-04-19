@@ -1,87 +1,128 @@
-Elevator Project
-================
+# Elevator Project
+Cross platform program for controlling `m` elevators over `n` floors, written in Elixir.
+
+## Program flow
+```
+Boot node
+Ping other Nodes
+IO_poller polls sensors and buttons
+
+Button pushed?
+  IO sends to the order module.
+  Order auctions the order, all the elevators respond with their cost.
+  Order accepted (for hall_up/hall_down one other elevator responds)?
+    Send the order to the watchdogs.
+    Update order_map with the corresponding elevator & order that won the auction.
+
+Finished an order?
+  Send a message to all order modules that you finished it.
+
+Order in order_map?
+  Calculate the cheapest order and send to elevator.
+
+Order timed out?
+  WatchDog sends the order back to auction.
+```
+
+## Modules
+Quick overview of existing modules and what they do.
+
+##### Order
+The brain of the elevator, sends orders to auction, updates the order map/sends orders to the watchdog, takes in new orders from IO and sends the next order to the elevator.
+
+##### WatchDog
+Used to handle orders that were not taken in time, sends these back to the Order module for redistribution.
+
+##### Network
+Keeps the elevator on the network by pinging the other elevators(if not in single elevator mode).
+
+##### Lights
+Retrieves the order map, and updates the lights accordingly.
+
+##### Elevator
+State machine for controlling the elevator. Is given a floor, and stops upon reaching that floor.
+
+##### IO_poller
+Polls the hardware buttons of the Driver module, and sends these to Elevator and Order accordingly.
+
+##### Driver
+For interfacing with the Simulator/elevator at the lab.
+
+## Supervision
+All of these modules are implemented under the `Main` application, which starts the supervision tree in `ElevProject.Supervisor`. 
 
 
-Summary
--------
-Create software for controlling `n` elevators working in parallel across `m` floors.
+## How to run 
+**IMPORTANT** Assumes that you have both elixir and mix installed on your computer.
 
+The entry point to the program is the `elev_project/lib/main.ex` file, or the `elev_project/elevator_run.sh` bash script.
+To change config parameters go to `elev_project/config/config.exs`. 
 
-Main requirements
------------------
-Be reasonable: There may be semantic hoops that you can jump through to create something that is "technically correct". Do not hesitate to contact us if you feel that something is ambiguous or missing from these requirements.
+**IMPORTANT** the network config needs to be changed based on IP, as we manually add them to the list of `node_ips` in `elev_project/config/config.exs`. Here the format is `:"<elevator_number>@<node_ip>"`, which predetermines what IP is what elevator number. As long as one of the elevators have the correct IPs in its config it should work, due to elixir's Node module.
 
-### No orders are lost
- - Once the light on a hall call button (buttons for calling an elevator to that floor; top 6 buttons on the control panel) is turned on, an elevator should arrive at that floor
- - Similarly for a cab call (for telling the elevator what floor you want to exit at; front 4 buttons on the control panel), but only the elevator at that specific workspace should take the order
- - This means handling network packet loss, losing network connection entirely, software that crashes, and losing power - both to the elevator motor and the machine that controls the elevator
-   - For cab orders, handling loss of power/software crash implies that the orders are executed once service is restored
-   - The time used to detect these failures should be reasonable, ie. on the order of magnitude of seconds (not minutes)
-   - Network packet loss is not an error, and can occur at any time
- - If the elevator is disconnected from the network, it should still serve all the currently active orders (ie. whatever lights are showing)
-   - It should also keep taking new cab calls, so that people can exit the elevator even if it is disconnected from the network
-   - The elevator software should not require reinitialization (manual restart) after intermittent network or motor power loss
+Navigate to the `elev_project` folder and run the following to get the dependencies.
+```
+mix deps.get
+```
 
-### Multiple elevators should be more efficient than one
- - The orders should be distributed across the elevators in a reasonable way
-   - Ex: If all three elevators are idle and two of them are at the bottom floor, then a new order at the top floor should be handled by the closest elevator (ie. neither of the two at the bottom).
- - You are free to choose and design your own "cost function" of some sort: Minimal movement, minimal waiting time, etc.
- - The project is not about creating the "best" or "optimal" distribution of orders. It only has to be clear that the elevators are cooperating and communicating.
- 
-### An individual elevator should behave sensibly and efficiently
- - No stopping at every floor "just to be safe"
- - The hall "call upward" and "call downward" buttons should behave differently
-   - Ex: If the elevator is moving from floor 1 up to floor 4 and there is a downward order at floor 3, then the elevator should not stop on its way upward, but should return back to floor 3 on its way down
- 
-### The lights and buttons should function as expected
- - The hall call buttons on all workspaces should let you summon an elevator
- - Under normal circumstances, the lights on the hall buttons should show the same thing on all workspaces 
-   - Under circumstances with high packet loss, at least one light must work as expected
- - The cab button lights should not be shared between elevators
- - The cab and hall button lights should turn on as soon as is reasonable after the button has been pressed
-   - Not ever turning on the button lights because "no guarantee is offered" is not a valid solution
-   - You are allowed to expect the user to press the button again if it does not light up
- - The cab and hall button lights should turn off when the corresponding order has been serviced
- - The "door open" lamp should be used as a substitute for an actual door, and as such should not be switched on while the elevator is moving
-   - The duration for keeping the door open should be in the 1-5 second range
- - The obstruction switch should substitute the door obstruction sensor inside the elevator
-   - The door should not close while it is obstructed
+### Run using the script (Linux only)
 
- 
-Start with `1 <= n <= 3` elevators, and `m == 4` floors. Try to avoid hard-coding these values: You should be able to add a fourth elevator with no extra configuration, or change the number of floors with minimal configuration. You do, however, not need to test for `n > 3` and `m != 4`.
+#### Install tmux
+On ubuntu
+```
+sudo apt install tmux
+```
 
+#### Run the script
+If you have tmux installed you can run the `elevator_run.sh` script.
 
-Unspecified behaviour
----------------------
-Some things are left intentionally unspecified. Their implementation will not be tested, and are therefore up to you.
+To navigate the tmux windows visit [tmux-cheat-sheet](https://tmuxcheatsheet.com/), to enable mouse clicking create ~/.tmux.conf and add the line `set-window-option -g mouse on`
 
-Which orders are cleared when stopping at a floor
- - You can clear only the orders in the direction of travel, or assume that everyone enters/exits the elevator when the door opens
- 
-How the elevator behaves when it cannot connect to the network (router) during initialization
- - You can either enter a "single-elevator" mode, or refuse to start
- 
-How the hall (call up, call down) buttons work when the elevator is disconnected from the network
- - You can optionally refuse to take these new orders
- 
-What the stop button does
-   - The stop button functionality (if/when implemented) is up to you
+With 1,2 or 3 `total_number_of_elevators`.`
+Navigate to the `elevator_run_sh` script.
+```
+./elevator_run.sh <total_number_of_elevators>
+```
 
-   
-Permitted assumptions
----------------------
+### Run using commands
 
-The following assumptions will always be true during testing:
- 1. At least one elevator is always working normally
- 2. No multiple simultaneous errors: Only one error happens at a time, but the system must still return to a fully operational state after this error
-    - Recall that network packet loss is *not* an error in this context, and must be considered regardless of any other (single) error that can occur
- 3. No network partitioning: There will never be a situation where there are multiple sets of two or more elevators with no connection between them
- 4. Cab call redundancy with a single elevator is not required
-    - Given assumptions **1** and **2**, a system containing only one elevator is assumed to be unable to fail
-   
-Additional resources
---------------------
+First you need to run the simulators, these can be found in the simulator folder.
+Navigate to the `Simulator` folder.
+The simulator port has to match the elevator port. 6000, 6001, 6002 are examples of usable ports.
 
-Go to [the project resources repository](https://github.com/TTK4145/Project-resources) to find more resources for doing the project. This information is not required for the project, and is therefore maintained separately.
+*On Linux:*
+```
+./SimElevatorServer --port <port>
+```
+*On Windows:*
+```
+SimElevatorServer.exe -port <port>
+```
 
-See [Testing from home](/testing_from_home.md) document on how to test with unreliable networking on a single computer.
+Then the elevators can seperately be started with the following commands from within the `elev_project` folder.
+Here the `elevator_number` starts at 1. The second elevator you start has the number 2 and so on. The `total_number_of_elevators` are 1-indexed as well.
+
+Navigate to the `elev_project` folder.
+
+On Linux/Windows:
+```
+iex -S mix
+Main.run_elevator <port>, <elevator_number>, <total_number_of_elevators>
+```
+
+If it is not already running, start the Erlang port mapper daemon:
+*On Linux:*
+```
+epmd -daemon
+```
+*On Windows, you need to locate epmd.exe and run it:*
+
+```
+epmd.exe -daemon
+```
+
+## Credits
+
+GenStateMachine is used for FSM in the elevator.
+
+Inspiration from Jostein Løwer's [kokeplata](https://github.com/jostlowe/kokeplata) in Network and IO_poller. And also for his Driver module.

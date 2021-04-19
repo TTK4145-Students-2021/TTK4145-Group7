@@ -1,4 +1,7 @@
 defmodule HardwareSupervisor do
+  @moduledoc """
+  Supervisor for the different hardware elements of the project.
+  """
   use Supervisor
 
   def start_link([port]) do

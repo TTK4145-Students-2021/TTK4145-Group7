@@ -7,7 +7,7 @@ start_simulator () {
 
 start_elevator () {
     tmux send-keys "iex -S mix" Enter
-    tmux send-keys "Main.start $1, $2, $3" Enter
+    tmux send-keys "Main.run_elevator $1, $2, $3" Enter
 }
 
 case $1 in

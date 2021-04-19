@@ -1,9 +1,12 @@
 defmodule Order do
   @moduledoc """
   Module that starts a `GenServer` keeping track of all the orders for every connected elevator.
-  The `GenServer` state consists of a tuple containing the current elevator id and its complete
-  `order_map`. An `order` entry in the map always has a key in the form `{elevator_number, floor, order_type}
+  The `GenServer` state consists of its complete `order_map`. 
+  An `order` entry in the map always has a key in the form `{elevator_number, floor, order_type}
   """
+  use GenServer
+  require Logger
+
   @name :order_server
 
   @check_for_orders_interval  Application.fetch_env!(:elevator_project, :check_for_orders_interval) 
@@ -14,14 +17,16 @@ defmodule Order do
   @initialization_time        Application.fetch_env!(:elevator_project, :initialization_time)
   @order_penalty              Application.fetch_env!(:elevator_project, :order_penalty)
 
-  @max_cost (2*@top_floor * (@stop_cost+@travel_cost))
+  @max_cost                   (2*@top_floor * (@stop_cost + @travel_cost))
 
-  use GenServer
-  require Logger
-
+  @doc """
+  Start the Order module.
+  """
   def start_link([]) do
     {:ok, pid} = GenServer.start_link(__MODULE__, [], name: @name)
+
     Process.send_after(@name, :check_for_orders, @initialization_time)
+
     {:ok, pid}
   end
 
@@ -34,14 +39,23 @@ defmodule Order do
     elevator_number = Application.fetch_env!(:elevator_project, :elevator_number)
 
     {node_costs, bad_nodes_cost_calc} =
-      GenServer.multi_call([node() | Node.list()],@name, {:calc_cost, {elevator_number, floor, order_type}}, @multi_call_timeout)
+      GenServer.multi_call(
+        [node() | Node.list()],
+        @name, 
+        {:calc_cost, {elevator_number, floor, order_type}}, 
+        @multi_call_timeout
+      )
 
     {winning_elevator, cost}  = 
       if from === :order_watchdog do
         node_costs
         |> Keyword.values()
         |> Enum.map(fn x -> {elev_n, cost} = x;
-          cost = if elev_n === order_elevator_number do @max_cost + @order_penalty else cost end
+          cost = if elev_n === order_elevator_number do
+            @max_cost + @order_penalty 
+          else 
+            cost 
+          end
           {elev_n, cost} end)
         |> Enum.min_by(fn x -> elem(x,1) end)
       else
@@ -51,27 +65,46 @@ defmodule Order do
       end
 
     {acks, bad_nodes_new_order} =
-      GenServer.multi_call(Node.list(), @name, {:new_order, {winning_elevator, floor, order_type}}, @multi_call_timeout)
+      GenServer.multi_call(
+        Node.list(), 
+        @name, 
+        {:new_order, {winning_elevator, floor, order_type}}, 
+        @multi_call_timeout
+      )
 
     n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
-    order_accepted? = (Enum.count(acks) > 0 or 
-                      order_type === :cab or 
-                      n_elevators === 1 or 
-                      from === :order_watchdog)
+
+    order_accepted? = 
+      (Enum.count(acks) > 0 or 
+      order_type === :cab or 
+      n_elevators === 1 or 
+      from === :order_watchdog)
     
     if order_accepted? do
       GenServer.call(@name, {:new_order, {winning_elevator, floor, order_type}})
 
       if from === :order_watchdog and order_elevator_number !== winning_elevator do
-        GenServer.multi_call([node() | Node.list()],@name, {:remove_timed_out_order, order}, @multi_call_timeout)
+        GenServer.multi_call(
+          [node() | Node.list()],
+          @name, 
+          {:remove_timed_out_order, order}, 
+          @multi_call_timeout
+        )
       end 
     end
 
     if length(bad_nodes_cost_calc) > 0 or length(bad_nodes_new_order) > 0 do
-      Logger.warning(%{bad_nodes_cost_calc: bad_nodes_cost_calc,
-        bad_nodes_new_order: bad_nodes_new_order})
+      Logger.warning(%{
+        bad_nodes_cost_calc: bad_nodes_cost_calc,
+        bad_nodes_new_order: bad_nodes_new_order
+      })
     end
-    Logger.debug(%{node_costs: node_costs, winning_elevator: winning_elevator, cost: cost})
+
+    Logger.debug(%{
+      node_costs: node_costs, 
+      winning_elevator: winning_elevator, 
+      cost: cost
+    })
 
     node_costs
   end
@@ -82,7 +115,13 @@ defmodule Order do
   """
   def order_completed(floor) do
     elevator_number = Application.fetch_env!(:elevator_project, :elevator_number)
-    GenServer.multi_call([node() | Node.list()],@name, {:order_completed, {elevator_number, floor, :dummy}},@multi_call_timeout)
+
+    GenServer.multi_call(
+      [node() | Node.list()],
+      @name, 
+      {:order_completed, {elevator_number, floor, :dummy}},
+      @multi_call_timeout
+    )
   end
 
   @doc """
@@ -90,23 +129,33 @@ defmodule Order do
   and asks the `order_server` to update their `order_map`.
   """
   def compare_order_maps() do  
-    {good_nodes, bad_nodes} = GenServer.multi_call([node() | Node.list()], @name, :get_order_map, @multi_call_timeout)
-    all_available_order_maps = Enum.reduce(Keyword.values(good_nodes), [], fn x, acc -> acc++[x] end)
-    all_orders = Enum.reduce(all_available_order_maps, %{}, fn order_map, combined_orders ->
-                              Map.merge(combined_orders, order_map, fn _order, ordered_in1, ordered_in2 ->
-                                  ordered_in1 or ordered_in2
-                                end)
-                              end)
+    {good_nodes, bad_nodes} = 
+      GenServer.multi_call(
+        [node() | Node.list()], 
+        @name, :get_order_map, 
+        @multi_call_timeout
+      )
+
+    all_available_order_maps = 
+      Enum.reduce(Keyword.values(good_nodes), [], fn x, acc -> acc++[x] end)
+      
+    all_orders = 
+      Enum.reduce(all_available_order_maps, %{}, fn order_map, combined_orders -> 
+          Map.merge(combined_orders, order_map, fn _order, ordered_in1, ordered_in2 ->
+            ordered_in1 or ordered_in2
+          end)
+        end)
 
     if length(bad_nodes) > 0 do
       Logger.warning(%{bad_nodes: bad_nodes})
     end
 
     Enum.each(all_orders, fn {{elev_num,floor,type}, is_ordered} -> 
-                            if(is_ordered and type !== :cab) do 
-                              WatchDog.new_order({elev_num,floor,type}) 
-                            end 
-                          end)
+      if(is_ordered and type !== :cab) do 
+        WatchDog.new_order({elev_num,floor,type}) 
+      end 
+    end)
+
     GenServer.cast(@name, {:update_order_map, all_orders})
   end
 
@@ -121,18 +170,17 @@ defmodule Order do
   def init(_args) do
     n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
     order_map = create_order_map(n_elevators, @top_floor)
+
     {:ok, order_map}
   end
 
-  @doc """
-  Tells this order_server what elevator has the lowest cost, adds it to the `order_map` and starts a WatchDog for this `order`.
-  """
   @impl true
   def handle_call({:new_order, order}, _from, order_map) do
     {_elev_num, _floor, order_type} = order
     order_map = Map.put(order_map, order, true)
 
     n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
+
     if order_type !== :cab and n_elevators > 1 do
       Task.start(WatchDog, :new_order, [order])
     end
@@ -143,9 +191,14 @@ defmodule Order do
   @impl true
   def handle_call({:calc_cost, {elevator_that_sent_order, ordered_floor, :cab}}, _from, order_map) do
     elevator_number = Application.fetch_env!(:elevator_project, :elevator_number)
+
     cost =
       if(elevator_number === elevator_that_sent_order) do
-        calculate_cost({elevator_number, ordered_floor, :cab}, order_map, Elevator.get_elevator_data())
+        calculate_cost(
+          {elevator_number, ordered_floor, :cab}, 
+          order_map, 
+          Elevator.get_elevator_data()
+        )
       else
         @max_cost + @order_penalty
       end
@@ -157,7 +210,11 @@ defmodule Order do
   def handle_call({:calc_cost, order}, _from, order_map) do
     {_elevator_that_sendt_order, ordered_floor, order_type} = order
     elevator_number = Application.fetch_env!(:elevator_project, :elevator_number)
-    cost = calculate_cost({elevator_number,ordered_floor,order_type}, order_map, Elevator.get_elevator_data())
+    cost = calculate_cost(
+      {elevator_number,ordered_floor,order_type}, 
+      order_map, 
+      Elevator.get_elevator_data()
+    )
 
     {:reply, {elevator_number, cost}, order_map}
   end
@@ -196,6 +253,7 @@ defmodule Order do
   def handle_info(:check_for_orders, order_map) do
     current_elevator = Application.fetch_env!(:elevator_project, :elevator_number)
     elevator_state = Elevator.get_elevator_data()
+    
     %{
       direction: elevator_direction,
       floor: elevator_current_floor,
@@ -240,6 +298,7 @@ defmodule Order do
     filter_out_order_type =
       case filter do
         :filter_active -> if direction === :down do :hall_up else :hall_down end
+
         _filter -> :no_filter
       end
     

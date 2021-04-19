@@ -2,24 +2,27 @@ defmodule Network do
   @moduledoc """
   Network module used to connect and keep the connection to the other elevators.
   """
-
   use Task
   require Logger
 
   @ping_interval Application.fetch_env!(:elevator_project, :ping_interval) 
+  @node_ips      Application.fetch_env!(:elevator_project, :node_ips)
   
+  @doc """
+  Start the network module.
+  """
   def start_link([]) do
       Task.start_link(__MODULE__, :ping_nodes, [])
   end
 
   @doc """
-  Pings all the other elevator nodes every seconds, keeps the nodes connected, when they can.
+  Pings all the other elevator nodes. Keeps the nodes connected when it is possible.
   """
   def ping_nodes(connected_nodes \\ 1) do 
     Process.sleep(@ping_interval)
 
     node_answers = 
-      get_all_nodes()
+      @node_ips
       |> Enum.reduce([], fn node, acc -> acc++[{node, Node.ping(node)}]end)
 
     alive_nodes = 
@@ -37,30 +40,22 @@ defmodule Network do
               Logger.warning("Lost connection to " <> to_string(elem(x,0)))
             end
           end)
-      true -> nil
+
+      true -> 
+        nil
     end
   
     ping_nodes(alive_nodes)
   end
 
   @doc """
-    boots node with a given elevator number and ip given from the config file
+    boots node with a given elevator number and ip given from the config file.
   """
   def boot_node(tick_time \\ 7_500) do
-    node_ips = Application.fetch_env!(:elevator_project, :node_ips)
     elevator_number = Application.fetch_env!(:elevator_project, :elevator_number)
-    full_name = elem(List.to_tuple(node_ips), elevator_number-1)
+    full_name = elem(List.to_tuple(@node_ips), elevator_number-1)
+
     Node.start(full_name, :longnames, tick_time)
     Node.set_cookie(:epicalyx)
-  end
-
-
-  @doc """
-  Gets a list of all the elevator node names in the system.
-  """
-  def get_all_nodes() do
-    Application.fetch_env!(:elevator_project, :node_ips)
-    #n_elevators = Application.fetch_env!(:elevator_project, :number_of_elevators)
-    #Enum.map(1..n_elevators, fn x -> String.to_atom(to_string(x) <> "@" <> to_string(:inet.ntoa(get_my_ip()))) end)
   end
 end

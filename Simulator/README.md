@@ -2,6 +2,11 @@
 
 Run with the following command
 
+*On Linux:*
 ```
-./SimElevatorServer
+./SimElevatorServer --port <port>
+```
+*On Windows:*
+```
+SimElevatorServer.exe -port <port>
 ```

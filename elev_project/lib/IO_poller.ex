@@ -1,21 +1,23 @@
 defmodule ButtonPoller do
-
   @moduledoc """
   Module used for creating a process to monitor a single button.
   """
+  use Task
+  require Logger
+
   @name :button_poller
   
   @polling_time Application.fetch_env!(:elevator_project, :polling_interval)
 
-  use Task
-  require Logger
-
+  @doc """
+  Starts the button poller.
+  """
   def start_link(floor, button_type) do
     Task.start_link(__MODULE__, :button_poller, [floor, button_type, :released])
   end
 
   @doc """
-  Retrieve the child_spec for ButtonPoller
+  Retrieve the child_spec for ButtonPoller.
   """
   def child_spec(floor, button_type) do
     %{
@@ -39,14 +41,23 @@ defmodule ButtonPoller do
       order: _elevator_current_order,
       obstruction: _obstruction,
     } = Elevator.get_elevator_data()
+
     new_button_state = 
       cond do
         state === 0 ->
           :released
 
         state === 1 and button_state == :released ->
-          Logger.info("Button pressed at: " <> to_string(floor) <> " " <> to_string(button_type))
-          if elevator_current_floor !== nil do Order.send_order({:elevator_number, floor, button_type}, @name) end
+          Logger.info(
+            "Button pressed at: " <> 
+            to_string(floor) <> " " <> 
+            to_string(button_type)
+            )
+          
+          if elevator_current_floor !== nil do 
+            Order.send_order({:elevator_number, floor, button_type}, @name) 
+          end
+          
           :pressed
         
         state === 1 ->
@@ -66,10 +77,16 @@ defmodule SensorPoller do
 
   @polling_time Application.fetch_env!(:elevator_project, :polling_interval)
 
+  @doc """
+  Starts the sensor poller.
+  """
   def start_link(sensor_type) do
     case sensor_type do
       :floor_sensor ->
-        Task.start_link(__MODULE__, :sensor_poller, [sensor_type, :between_floors])
+        Task.start_link(__MODULE__, :sensor_poller, [
+          sensor_type, 
+          :between_floors
+        ])
 
       :obstruction_sensor ->
         Task.start_link(__MODULE__, :sensor_poller, [
@@ -79,6 +96,10 @@ defmodule SensorPoller do
     end
   end
 
+
+  @doc """
+  Retrieve the child_spec for SensorPoller.
+  """
   def child_spec(sensor_type) do
     %{
       id: to_string(sensor_type),
@@ -93,13 +114,16 @@ defmodule SensorPoller do
   """
   def sensor_poller(:floor_sensor, :between_floors) do
     Process.sleep(@polling_time)
+
     sensor_poller(:floor_sensor, Driver.get_floor_sensor_state())
   end
 
   def sensor_poller(:floor_sensor, :poller_idle) do
     Process.sleep(@polling_time)
+
     case Driver.get_floor_sensor_state() do
       :between_floors -> sensor_poller(:floor_sensor, :between_floors)
+
       _other -> sensor_poller(:floor_sensor, :poller_idle)
     end
   end
@@ -115,6 +139,7 @@ defmodule SensorPoller do
 
   def sensor_poller(:obstruction_sensor, :inactive) do
     Process.sleep(@polling_time)
+
     case Driver.get_obstruction_switch_state() do
       :inactive ->
         sensor_poller(:obstruction_sensor, :inactive)
@@ -122,16 +147,19 @@ defmodule SensorPoller do
       :active ->
         Logger.info("Obstruction active!")
         Elevator.obstruction_switch(:active)
+
         sensor_poller(:obstruction_sensor, :active)
     end
   end
 
   def sensor_poller(:obstruction_sensor, :active) do
     Process.sleep(@polling_time)
+
     case Driver.get_obstruction_switch_state() do
       :inactive ->
         Logger.info("Obstruction released!")
         Elevator.obstruction_switch(:inactive)
+        
         sensor_poller(:obstruction_sensor, :inactive)
 
       :active ->
